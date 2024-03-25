@@ -1,0 +1,13 @@
+provider:
+  name: vellum
+resources:
+  document_index:
+    create:
+      path: /v1/document-indexes
+      method: POST
+    read:
+      path: /v1/document-indexes/{id}
+      method: GET
+    schema:
+      ignores:
+        - indexing_config

@@ -1,0 +1,111 @@
+{
+	"provider": {
+		"name": "vellum"
+	},
+	"resources": [
+		{
+			"name": "document_index",
+			"schema": {
+				"attributes": [
+					{
+						"name": "copy_documents_from_index_id",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Optionally specify the id of a document index from which you'd like to copy and re-index its documents into this newly created index"
+						}
+					},
+					{
+						"name": "environment",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "The environment this document index is used in\n\n* `DEVELOPMENT` - Development\n* `STAGING` - Staging\n* `PRODUCTION` - Production",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"DEVELOPMENT\",\n\"STAGING\",\n\"PRODUCTION\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "label",
+						"string": {
+							"computed_optional_required": "required",
+							"description": "A human-readable label for the document index",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.LengthBetween(1, 150)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "name",
+						"string": {
+							"computed_optional_required": "required",
+							"description": "A name that uniquely identifies this index within its workspace",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.LengthBetween(1, 150)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "status",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "The current status of the document index\n\n* `ACTIVE` - Active\n* `ARCHIVED` - Archived",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"ACTIVE\",\n\"ARCHIVED\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "created",
+						"string": {
+							"computed_optional_required": "computed"
+						}
+					},
+					{
+						"name": "id",
+						"string": {
+							"computed_optional_required": "computed",
+							"description": "Either the Document Index's ID or its unique name"
+						}
+					}
+				]
+			}
+		}
+	],
+	"version": "0.1"
+}

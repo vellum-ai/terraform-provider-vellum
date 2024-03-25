@@ -62,3 +62,35 @@ In order to run the full suite of Acceptance tests, run `make testacc`.
 ```shell
 make testacc
 ```
+
+## Code Generation
+We use code generation where possible to auto-generate as much provider code as possible from an OpenAPI spec.
+Where not possible, we generate the initial scaffolding and boilerplate and then hand-write the rest.
+
+### Generating from OpenAPI Spec
+
+Step 1) Install these two generator tools:
+
+```shell
+go install github.com/hashicorp/terraform-plugin-codegen-openapi/cmd/tfplugingen-openapi@latest
+go install github.com/hashicorp/terraform-plugin-codegen-framework/cmd/tfplugingen-framework@latest
+```
+
+Step 2) If needed, update the OpenAPI spec found at `internal/provider/specs/openapi.yaml`.
+
+Step 3) If defining a new resource, specify the mappings in `internal/provider/specs/generator_config.yml`.
+
+Step 4) Run the following command to generate the provider code:
+
+```shell
+make generate-all
+```
+
+### Scaffolding a New Resource
+Code generation is quite limited today (see [known limitations](https://github.com/hashicorp/terraform-plugin-codegen-openapi/blob/main/DESIGN.md#known-limitations).
+If you need to define a resource and code generation doesn't work, you can at least scaffold its initial boilerplate
+and then hand-write the rest using the following command:
+
+```shell
+make scaffold-resource name=my_resource
+```
