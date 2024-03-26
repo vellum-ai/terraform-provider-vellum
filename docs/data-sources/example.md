@@ -3,7 +3,7 @@
 page_title: "vellum_document_index Data Source - vellum"
 subcategory: ""
 description: |-
-  References a document index stored on Vellum
+  References a Document Index in Vellum
 ---
 
 # vellum_document_index (Data Source)
