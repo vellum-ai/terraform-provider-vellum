@@ -3,7 +3,7 @@
 page_title: "vellum_document_index Resource - vellum"
 subcategory: ""
 description: |-
-  Manages a Document Index stored on Vellum
+  Manages a Document Index in Vellum
 ---
 
 # vellum_document_index (Resource)
