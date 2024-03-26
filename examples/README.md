@@ -2,8 +2,35 @@
 
 This directory contains examples that are mostly used for documentation, but can also be run/tested manually via the Terraform CLI.
 
-The document generation tool looks for files in the following locations by default. All other *.tf files besides the ones mentioned below are ignored by the documentation tool. This is useful for creating examples that can run and/or ar testable even if some parts are not relevant for the documentation.
+## Prerequisites
 
-* **provider/provider.tf** example file for the provider index page
-* **data-sources/`full data source name`/data-source.tf** example file for the named data source page
-* **resources/`full resource name`/resource.tf** example file for the named data source page
+Create a new file called `.terraformrc` in your home directory (`~`). This allows you to run terraform against the locally built provider:
+
+```
+provider_installation {
+  dev_overrides {
+    "hashicorp.com/ai/vellum" = "/Users/<Username>/go/bin"
+  }
+
+  direct {}
+}
+```
+
+Be sure to replace `<Username>` with your home username.
+
+Then, ensure you have the following tools installed:
+
+- [Go 1.21+](https://golang.org/doc/install) installed and configured.
+- [Terraform v1.5+](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) installed locally.
+
+Finally, run `go install` from the repository's root which builds the provider's binaries into the `~/go/bin` directory.
+
+## Running
+
+Within the `/examples/provider` directory, you should run:
+
+```bash
+terraform plan
+```
+
+This will run the example against local terraform state, specifying all the resources that will be built, modified, or deleted as a result.
