@@ -15,4 +15,5 @@ data "vellum_document_index" "reference" {
 
 resource "vellum_document_index" "managed" {
   label = "Managed Index"
+  name  = "managed-index" 
 }
