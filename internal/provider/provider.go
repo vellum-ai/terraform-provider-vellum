@@ -5,7 +5,7 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 	"terraform-provider-vellum/internal/provider/document_index"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
 // Ensure VellumProvider satisfies various provider interfaces.
@@ -58,7 +60,11 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	client := http.DefaultClient
+	client := vellumclient.NewClient(
+		vellumclient.WithApiKey(
+			os.Getenv("VELLUM_API_KEY"),
+		),
+	)
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }

@@ -3,12 +3,13 @@ package document_index
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -20,7 +21,7 @@ func NewDocumentIndexDataSource() datasource.DataSource {
 
 // DocumentIndexDataSource defines the data source implementation.
 type DocumentIndexDataSource struct {
-	client *http.Client
+	client *vellumclient.Client
 }
 
 // DocumentIndexDataSourceModel describes the data source data model.
@@ -52,7 +53,7 @@ func (d *DocumentIndexDataSource) Configure(ctx context.Context, req datasource.
 		return
 	}
 
-	client, ok := req.ProviderData.(*http.Client)
+	client, ok := req.ProviderData.(*vellumclient.Client)
 
 	if !ok {
 		resp.Diagnostics.AddError(

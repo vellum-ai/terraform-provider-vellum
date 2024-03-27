@@ -6,7 +6,6 @@ package document_index
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -15,6 +14,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	vellum "terraform-provider-vellum/internal/sdk"
+	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -27,7 +29,7 @@ func NewDocumentIndexResource() resource.Resource {
 
 // DocumentIndexResource defines the resource implementation.
 type DocumentIndexResource struct {
-	client *http.Client
+	client *vellumclient.Client
 }
 
 // DocumentIndexResourceModel describes the resource data model.
@@ -115,7 +117,7 @@ func (r *DocumentIndexResource) Configure(ctx context.Context, req resource.Conf
 		return
 	}
 
-	client, ok := req.ProviderData.(*http.Client)
+	client, ok := req.ProviderData.(*vellumclient.Client)
 
 	if !ok {
 		resp.Diagnostics.AddError(
@@ -132,36 +134,58 @@ func (r *DocumentIndexResource) Configure(ctx context.Context, req resource.Conf
 func (r *DocumentIndexResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data DocumentIndexResourceModel
 
-	// Read Terraform plan data into the model
+	// Read Terraform plan data into the model.
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create document index, got error: %s", err))
-	//     return
-	// }
+	// TODO: Replace this with data.indexing_config, make indexing_config optional in vellum backend.
+	DefaultIndexingConfig := map[string]interface{}{
+		"chunking": map[string]interface{}{
+			"chunker_name": "sentence-chunker",
+			"chunker_config": map[string]interface{}{
+				"character_limit":   1000,
+				"min_overlap_ratio": 0.5,
+			},
+		},
+		"vectorizer": map[string]interface{}{
+			"model_name": "hkunlp/instructor-xl",
+			"config": map[string]interface{}{
+				"instruction_domain":             "",
+				"instruction_document_text_type": "plain_text",
+				"instruction_query_text_type":    "plain_text",
+			},
+		},
+	}
 
-	// Hardcoding a response value to save into the Terraform state.
-	data.Id = types.StringValue("document-index-id")
+	// If applicable, this is a great opportunity to initialize any necessary provider client data and make a call using it.
+	httpResp, err := r.client.DocumentIndexes.Create(ctx, &vellum.DocumentIndexCreateRequest{
+		Label:          data.Label.ValueString(),
+		Name:           data.Name.ValueString(),
+		IndexingConfig: DefaultIndexingConfig,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create document index, got error: %s", err))
+		return
+	}
 
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "created a resource")
+	data.Id = types.StringValue(httpResp.Id)
+	data.Created = types.StringValue(httpResp.Created.String())
+	data.Environment = types.StringValue(string(*httpResp.Environment))
+	data.CopyDocumentsFromIndexId = types.StringNull()
+	data.Status = types.StringValue(string(*httpResp.Status))
+	tflog.Trace(ctx, fmt.Sprintf("created a document index: %s", data.Id))
 
-	// Save data into Terraform state
+	// Save data into Terraform state.
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *DocumentIndexResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data DocumentIndexResourceModel
 
-	// Read Terraform prior state data into the model
+	// Read Terraform prior state data into the model.
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
