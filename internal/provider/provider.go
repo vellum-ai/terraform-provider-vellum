@@ -5,7 +5,7 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
 	"terraform-provider-vellum/internal/provider/document_index"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -13,7 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	providertypes "terraform-provider-vellum/internal/provider/types"
+	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
 // Ensure VellumProvider satisfies various provider interfaces.
@@ -26,11 +28,6 @@ type VellumProvider struct {
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
-}
-
-// VellumProviderModel describes the provider data model.
-type VellumProviderModel struct {
-	APIKey types.String `tfsdk:"api_key"`
 }
 
 func (p *VellumProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -50,7 +47,7 @@ func (p *VellumProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 }
 
 func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data VellumProviderModel
+	var data providertypes.VellumProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -58,7 +55,11 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	client := http.DefaultClient
+	client := vellumclient.NewClient(
+		vellumclient.WithApiKey(
+			os.Getenv("VELLUM_API_KEY"),
+		),
+	)
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
