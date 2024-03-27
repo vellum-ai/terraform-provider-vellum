@@ -5,7 +5,6 @@ import (
 
 	core "terraform-provider-vellum/internal/sdk/core"
 	documentindexes "terraform-provider-vellum/internal/sdk/documentindexes"
-	
 )
 
 type Client struct {

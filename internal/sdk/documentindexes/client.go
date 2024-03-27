@@ -5,10 +5,10 @@ package documentindexes
 import (
 	context "context"
 	fmt "fmt"
-	vellumclientgo "terraform-provider-vellum/internal/sdk"
-	core "terraform-provider-vellum/internal/sdk/core"
 	http "net/http"
 	url "net/url"
+	vellumclientgo "terraform-provider-vellum/internal/sdk"
+	core "terraform-provider-vellum/internal/sdk/core"
 )
 
 type Client struct {

@@ -1,8 +1,8 @@
 package client
 
 import (
-	core "terraform-provider-vellum/internal/sdk/core"
 	http "net/http"
+	core "terraform-provider-vellum/internal/sdk/core"
 )
 
 // WithBaseURL sets the client's base URL, overriding the
