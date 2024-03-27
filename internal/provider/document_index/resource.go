@@ -117,7 +117,16 @@ func (r *DocumentIndexResource) Configure(ctx context.Context, req resource.Conf
 		return
 	}
 
-	client := req.ProviderData.(*vellumclient.Client)
+	client, ok := req.ProviderData.(*vellumclient.Client)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
 
 	r.client = client
 }

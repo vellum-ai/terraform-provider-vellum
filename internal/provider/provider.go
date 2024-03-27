@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	providertypes "terraform-provider-vellum/internal/provider/types"
 	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
@@ -28,6 +28,11 @@ type VellumProvider struct {
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
+}
+
+// VellumProviderModel describes the provider data model.
+type VellumProviderModel struct {
+	APIKey types.String `tfsdk:"api_key"`
 }
 
 func (p *VellumProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -47,7 +52,7 @@ func (p *VellumProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 }
 
 func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data providertypes.VellumProviderModel
+	var data VellumProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
