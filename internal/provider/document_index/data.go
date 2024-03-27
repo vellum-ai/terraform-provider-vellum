@@ -25,7 +25,7 @@ type DocumentIndexDataSource struct {
 
 // DocumentIndexDataSourceModel describes the data source data model.
 type DocumentIndexDataSourceModel struct {
-	Name                    types.String `tfsdk:"name"`
+	Name types.String `tfsdk:"name"`
 }
 
 func (d *DocumentIndexDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
