@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"net/http"
+	"terraform-provider-vellum/internal/provider/document_index"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -29,7 +30,7 @@ type VellumProvider struct {
 
 // VellumProviderModel describes the provider data model.
 type VellumProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+	APIKey types.String `tfsdk:"api_key"`
 }
 
 func (p *VellumProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -40,8 +41,8 @@ func (p *VellumProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 func (p *VellumProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "API Key to authenticate with the Vellum API",
 				Optional:            true,
 			},
 		},
@@ -57,10 +58,6 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
 	client := http.DefaultClient
 	resp.DataSourceData = client
 	resp.ResourceData = client
@@ -68,20 +65,18 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 func (p *VellumProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		document_index.NewDocumentIndexResource,
 	}
 }
 
 func (p *VellumProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
+		document_index.NewDocumentIndexDataSource,
 	}
 }
 
 func (p *VellumProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
-	}
+	return []func() function.Function{}
 }
 
 func New(version string) func() provider.Provider {
