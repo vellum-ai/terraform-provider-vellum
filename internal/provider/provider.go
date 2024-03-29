@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+// reference: https://github.com/fern-demo/mongodb-atlas-terraform
+
 package provider
 
 import (
@@ -71,13 +73,13 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 func (p *VellumProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		document_index.NewDocumentIndexResource,
+		document_index.Resource,
 	}
 }
 
 func (p *VellumProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		document_index.NewDocumentIndexDataSource,
+		document_index.DataSource,
 	}
 }
 
