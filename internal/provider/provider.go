@@ -1,8 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-// reference: https://github.com/fern-demo/mongodb-atlas-terraform
-
 package provider
 
 import (
