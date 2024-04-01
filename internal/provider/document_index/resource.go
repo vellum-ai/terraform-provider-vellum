@@ -13,34 +13,29 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	vellum "terraform-provider-vellum/internal/sdk"
 	vellumclient "terraform-provider-vellum/internal/sdk/client"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces.
-var _ resource.Resource = &DocumentIndexResource{}
+var _ resource.ResourceWithConfigure = &DocumentIndexResource{}
 var _ resource.ResourceWithImportState = &DocumentIndexResource{}
 
-func NewDocumentIndexResource() resource.Resource {
-	return &DocumentIndexResource{}
-}
-
-// DocumentIndexResource defines the resource implementation.
 type DocumentIndexResource struct {
 	client *vellumclient.Client
 }
 
-// DocumentIndexResourceModel describes the resource data model.
-type DocumentIndexResourceModel struct {
-	CopyDocumentsFromIndexId types.String `tfsdk:"copy_documents_from_index_id"`
-	Created                  types.String `tfsdk:"created"`
-	Environment              types.String `tfsdk:"environment"`
-	Id                       types.String `tfsdk:"id"`
-	Label                    types.String `tfsdk:"label"`
-	Name                     types.String `tfsdk:"name"`
-	Status                   types.String `tfsdk:"status"`
+func Resource() resource.Resource {
+	return &DocumentIndexResource{}
+}
+
+type TfDocumentIndexResourceModel struct {
+	Created     types.String `tfsdk:"created"`
+	Environment types.String `tfsdk:"environment"`
+	Id          types.String `tfsdk:"id"`
+	Label       types.String `tfsdk:"label"`
+	Name        types.String `tfsdk:"name"`
+	Status      types.String `tfsdk:"status"`
 }
 
 func (r *DocumentIndexResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -52,12 +47,6 @@ func (r *DocumentIndexResource) Schema(ctx context.Context, req resource.SchemaR
 		MarkdownDescription: "Document Index resource",
 
 		Attributes: map[string]schema.Attribute{
-			"copy_documents_from_index_id": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				Description:         "Optionally specify the id of a document index from which you'd like to copy and re-index its documents into this newly created index",
-				MarkdownDescription: "Optionally specify the id of a document index from which you'd like to copy and re-index its documents into this newly created index",
-			},
 			"created": schema.StringAttribute{
 				Computed: true,
 			},
@@ -76,8 +65,8 @@ func (r *DocumentIndexResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"id": schema.StringAttribute{
 				Computed:            true,
-				Description:         "Either the Document Index's ID or its unique name",
-				MarkdownDescription: "Either the Document Index's ID or its unique name",
+				Description:         "The Document Index's ID",
+				MarkdownDescription: "The Document Index's ID",
 			},
 			"label": schema.StringAttribute{
 				Required:            true,
@@ -132,117 +121,130 @@ func (r *DocumentIndexResource) Configure(ctx context.Context, req resource.Conf
 }
 
 func (r *DocumentIndexResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data DocumentIndexResourceModel
+	var documentIndexPlan *TfDocumentIndexResourceModel
 
-	// Read Terraform plan data into the model.
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
+	diags := req.Plan.Get(ctx, &documentIndexPlan)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// TODO: Replace this with data.indexing_config, make indexing_config optional in vellum backend.
-	DefaultIndexingConfig := map[string]interface{}{
-		"chunking": map[string]interface{}{
-			"chunker_name": "sentence-chunker",
-			"chunker_config": map[string]interface{}{
-				"character_limit":   1000,
-				"min_overlap_ratio": 0.5,
-			},
-		},
-		"vectorizer": map[string]interface{}{
-			"model_name": "hkunlp/instructor-xl",
-			"config": map[string]interface{}{
-				"instruction_domain":             "",
-				"instruction_document_text_type": "plain_text",
-				"instruction_query_text_type":    "plain_text",
-			},
-		},
+	documentIndexRequest, d := NewVellumDocumentIndexCreateRequest(ctx, documentIndexPlan)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary provider client data and make a call using it.
-	httpResp, err := r.client.DocumentIndexes.Create(ctx, &vellum.DocumentIndexCreateRequest{
-		Label:          data.Label.ValueString(),
-		Name:           data.Name.ValueString(),
-		IndexingConfig: DefaultIndexingConfig,
-	})
+	documentIndex, err := r.client.DocumentIndexes.Create(ctx, documentIndexRequest)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create document index, got error: %s", err))
 		return
 	}
 
-	data.Id = types.StringValue(httpResp.Id)
-	data.Created = types.StringValue(httpResp.Created.String())
-	data.Environment = types.StringValue(string(*httpResp.Environment))
-	data.CopyDocumentsFromIndexId = types.StringNull()
-	data.Status = types.StringValue(string(*httpResp.Status))
-	tflog.Trace(ctx, fmt.Sprintf("created a document index: %s", data.Id))
+	documentIndexModel, diagnostic := NewTfDocumentIndexModel(ctx, documentIndexPlan, documentIndex)
+	resp.Diagnostics.Append(diagnostic...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Save data into Terraform state.
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &documentIndexModel)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *DocumentIndexResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data DocumentIndexResourceModel
-
-	// Read Terraform prior state data into the model.
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
+	var documentIndexState TfDocumentIndexResourceModel
+	var err error
+	resp.Diagnostics.Append(req.State.Get(ctx, &documentIndexState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read document index, got error: %s", err))
-	//     return
-	// }
+	documentIndex, err := r.client.DocumentIndexes.Retrieve(ctx, documentIndexState.Id.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read document index, got error: %s", err))
+		return
+	}
 
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	documentIndexModel, diagnostic := NewTfDocumentIndexModel(ctx, &documentIndexState, documentIndex)
+	resp.Diagnostics.Append(diagnostic...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &documentIndexModel)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *DocumentIndexResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data DocumentIndexResourceModel
+	var documentIndexPlan *TfDocumentIndexResourceModel
+	var documentIndexState *TfDocumentIndexResourceModel
 
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &documentIndexPlan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &documentIndexState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update document index, got error: %s", err))
-	//     return
-	// }
+	id := documentIndexState.Id.ValueString()
+	label := documentIndexPlan.Label.ValueString()
 
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	var status *vellum.EntityStatus
+	if documentIndexPlan.Status.ValueString() != "" {
+		s, _ := vellum.NewEntityStatusFromString(documentIndexPlan.Status.ValueString())
+		status = &s
+	}
+
+	var environment *vellum.EnvironmentEnum;
+	if documentIndexPlan.Environment.ValueString() != "" {
+		env, _ := vellum.NewEnvironmentEnumFromString(documentIndexPlan.Environment.ValueString())
+		environment = &env
+	}
+
+	documentIndex, err := r.client.DocumentIndexes.PartialUpdate(ctx,
+		id,
+		&vellum.PatchedDocumentIndexUpdateRequest{
+			Label:       &label,
+			Status:      status,
+			Environment: environment,
+		})
+
+	if err != nil {
+		resp.Diagnostics.AddError("error during document index update", err.Error())
+		return
+	}
+
+	documentIndexModel, diagnostic := NewTfDocumentIndexModel(ctx, documentIndexPlan, documentIndex)
+	resp.Diagnostics.Append(diagnostic...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &documentIndexModel)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *DocumentIndexResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data DocumentIndexResourceModel
+	var documentIndexState *TfDocumentIndexResourceModel
 
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
+	resp.Diagnostics.Append(req.State.Get(ctx, &documentIndexState)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete document index, got error: %s", err))
-	//     return
-	// }
+	err := r.client.DocumentIndexes.Destroy(
+		ctx,
+		documentIndexState.Id.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("error when destroying the document index resource", err.Error())
+		return
+	}
 }
 
 func (r *DocumentIndexResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

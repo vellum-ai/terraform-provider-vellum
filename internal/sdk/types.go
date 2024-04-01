@@ -11,10 +11,45 @@ import (
 // - `ARCHIVED` - Archived
 type EntityStatus string
 
+const (
+	EntityStatusActive   EntityStatus = "ACTIVE"
+	EntityStatusArchived EntityStatus = "ARCHIVED"
+)
+
+func NewEntityStatusFromString(s string) (EntityStatus, error) {
+	switch s {
+	case "ACTIVE":
+		return EntityStatusActive, nil
+	case "ARCHIVED":
+		return EntityStatusArchived, nil
+	}
+	var t EntityStatus
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
+
 // - `DEVELOPMENT` - Development
 // - `STAGING` - Staging
 // - `PRODUCTION` - Production
 type EnvironmentEnum string
+
+const (
+	EnvironmentEnumDevelopment EnvironmentEnum = "DEVELOPMENT"
+	EnvironmentEnumStaging     EnvironmentEnum = "STAGING"
+	EnvironmentEnumProduction  EnvironmentEnum = "PRODUCTION"
+)
+
+func NewEnvironmentEnumFromString(s string) (EnvironmentEnum, error) {
+	switch s {
+	case "DEVELOPMENT":
+		return EnvironmentEnumDevelopment, nil
+	case "STAGING":
+		return EnvironmentEnumStaging, nil
+	case "PRODUCTION":
+		return EnvironmentEnumProduction, nil
+	}
+	var t EnvironmentEnum
+	return "", fmt.Errorf("%s is not a valid %T", s, t)
+}
 
 type DocumentIndexRead struct {
 	Id      string    `json:"id"`

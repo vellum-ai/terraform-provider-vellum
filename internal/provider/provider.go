@@ -71,13 +71,13 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 func (p *VellumProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		document_index.NewDocumentIndexResource,
+		document_index.Resource,
 	}
 }
 
 func (p *VellumProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		document_index.NewDocumentIndexDataSource,
+		document_index.DataSource,
 	}
 }
 
