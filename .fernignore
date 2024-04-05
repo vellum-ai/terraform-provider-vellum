@@ -1,0 +1,5 @@
+# Support either 'id' or 'name' for document index data source.
+internal/terraform/documentindex/data_source_hooks.go
+
+# Support a default indexing config for creating document index resources.
+internal/terraform/documentindex/resource_hooks.go
