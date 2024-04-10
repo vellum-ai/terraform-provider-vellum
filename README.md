@@ -1,6 +1,6 @@
 # Vellum Terraform Provider
 
-This repository is the [Terraform](https://www.terraform.io) provider. 
+This repository defines the Vellum [Terraform](https://www.terraform.io) provider.
 
 ## Requirements
 
@@ -17,20 +17,6 @@ This repository is the [Terraform](https://www.terraform.io) provider.
 go install
 ```
 
-## Adding Dependencies
-
-This provider uses [Go modules](https://github.com/golang/go/wiki/Modules).
-Please see the Go documentation for the most up to date information about using Go modules.
-
-To add a new dependency `github.com/author/dependency` to your Terraform provider:
-
-```shell
-go get github.com/author/dependency
-go mod tidy
-```
-
-Then commit the changes to `go.mod` and `go.sum`.
-
 ## Using the provider
 
 Fill this in for each provider
@@ -45,13 +31,14 @@ To generate or update documentation, run `go generate`.
 
 In order to run the full suite of Acceptance tests, run `make testacc`.
 
-*Note:* Acceptance tests create real resources, and often cost money to run.
+_Note:_ Acceptance tests create real resources, and often cost money to run.
 
 ```shell
 make testacc
 ```
 
 ## Code Generation
+
 We use code generation where possible to auto-generate as much provider code as possible from an OpenAPI spec.
 Where not possible, we generate the initial scaffolding and boilerplate and then hand-write the rest.
 
@@ -75,6 +62,7 @@ make generate-all
 ```
 
 ### Scaffolding a New Resource
+
 Code generation is quite limited today (see [known limitations](https://github.com/hashicorp/terraform-plugin-codegen-openapi/blob/main/DESIGN.md#known-limitations).
 If you need to define a resource and code generation doesn't work, you can at least scaffold its initial boilerplate
 and then hand-write the rest using the following command:

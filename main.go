@@ -9,8 +9,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-
-	"terraform-provider-vellum/internal/provider"
+	"github.com/vellum-ai/terraform-provider-vellum/internal/terraform"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -43,7 +42,11 @@ func main() {
 		Debug:   debug,
 	}
 
-	err := providerserver.Serve(context.Background(), provider.New(version), opts)
+	err := providerserver.Serve(
+		context.Background(),
+		terraform.NewProvider(version),
+		opts,
+	)
 
 	if err != nil {
 		log.Fatal(err.Error())
