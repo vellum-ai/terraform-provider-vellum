@@ -29,9 +29,10 @@ func WithHTTPHeader(httpHeader http.Header) core.ClientOption {
 	}
 }
 
-// WithApiKey sets the apiKey auth header on every request.
-func WithApiKey(apiKey string) core.ClientOption {
+// WithApiKeyAndBaseUrl sets the baseUrl and apiKey auth header on every request.
+func WithApiKeyAndBaseUrl(apiKey string, baseUrl string) core.ClientOption {
 	return func(opts *core.ClientOptions) {
 		opts.ApiKey = apiKey
+		opts.BaseURL = baseUrl
 	}
 }
