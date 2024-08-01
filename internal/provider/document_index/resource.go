@@ -70,8 +70,8 @@ func (r *DocumentIndexResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"label": schema.StringAttribute{
 				Required:            true,
-				Description:         "A human-readable label for the document index",
-				MarkdownDescription: "A human-readable label for the document index",
+				Description:         "A human-readable label for the Document Index",
+				MarkdownDescription: "A human-readable label for the Document Index",
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 150),
 				},
@@ -199,7 +199,7 @@ func (r *DocumentIndexResource) Update(ctx context.Context, req resource.UpdateR
 		status = &s
 	}
 
-	var environment *vellum.EnvironmentEnum;
+	var environment *vellum.EnvironmentEnum
 	if documentIndexPlan.Environment.ValueString() != "" {
 		env, _ := vellum.NewEnvironmentEnumFromString(documentIndexPlan.Environment.ValueString())
 		environment = &env
