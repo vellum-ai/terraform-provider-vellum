@@ -32,7 +32,8 @@ type VellumProvider struct {
 
 // VellumProviderModel describes the provider data model.
 type VellumProviderModel struct {
-	APIKey types.String `tfsdk:"api_key"`
+	APIKey  types.String `tfsdk:"api_key"`
+	BaseUrl types.String `tfsdk:"base_url"`
 }
 
 func (p *VellumProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -45,6 +46,10 @@ func (p *VellumProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"api_key": schema.StringAttribute{
 				MarkdownDescription: "API Key to authenticate with the Vellum API",
+				Optional:            true,
+			},
+			"base_url": schema.StringAttribute{
+				MarkdownDescription: "Base URL to use with the Vellum API",
 				Optional:            true,
 			},
 		},
@@ -60,9 +65,15 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
+	baseUrl := os.Getenv("VELLUM_BASE_URL")
+	if baseUrl == "" {
+		baseUrl = data.BaseUrl.ValueString()
+	}
+
 	client := vellumclient.NewClient(
-		vellumclient.WithApiKey(
+		vellumclient.WithApiKeyAndBaseUrl(
 			os.Getenv("VELLUM_API_KEY"),
+			baseUrl,
 		),
 	)
 	resp.DataSourceData = client
