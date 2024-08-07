@@ -2,6 +2,7 @@ package ml_model
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -15,13 +16,24 @@ func NewVellumMLModelCreateRequest(ctx context.Context, mlModelModel *TfMLModelR
 	developedBy, _ := vellum.NewMlModelDeveloperFromString(mlModelModel.DevelopedBy.ValueString())
 	family, _ := vellum.NewMlModelFamilyFromString(mlModelModel.Family.ValueString())
 
-	// TODO: Pass in actual values rather than dummy keys
-	// Create an empty slice for features
-	features := []vellum.MlModelFeature{"CHAT_MESSAGE_SYSTEM"}
+	features := []vellum.MlModelFeature{}
+	for _, feature := range mlModelModel.ExecConfig.Features.Elements() {
+		feature, _ := vellum.NewMlModelFeatureFromString(feature.(types.String).ValueString())
+		features = append(features, feature)
+	}
+
+	metadata := map[string]interface{}{}
+	for key, tfvalue := range mlModelModel.ExecConfig.Metadata.Elements() {
+		var value interface{}
+		tfvalueString := tfvalue.(types.Dynamic).String()
+		err := json.Unmarshal(tfvalueString, &value)
+		metadata[key] = value
+	}
+
 	execConfig := vellum.MlModelExecConfigRequest{
-		ModelIdentifier: "test",
-		BaseUrl:         "http://localhost:8080",
-		Metadata:        map[string]interface{}{"key": "value"},
+		ModelIdentifier: mlModelModel.ExecConfig.ModelIdentifier.ValueString(),
+		BaseUrl:         mlModelModel.ExecConfig.BaseUrl.ValueString(),
+		Metadata:        metadata,
 		Features:        features,
 	}
 

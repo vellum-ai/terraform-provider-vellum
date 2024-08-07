@@ -6,7 +6,9 @@ package ml_model
 import (
 	"context"
 	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -28,6 +30,17 @@ func Resource() resource.Resource {
 	return &MLModelResource{}
 }
 
+// type TfMLModelExecConfigMetadata := types.MapType {
+// 	ElementType: types.Object,
+// }
+
+type TfMLModelExecConfig struct {
+	ModelIdentifier types.String `tfsdk:"model_identifier"`
+	BaseUrl         types.String `tfsdk:"base_url"`
+	Metadata        types.Map `tfsdk:"metadata"`
+	Features        types.List   `tfsdk:"features"`
+}
+
 type TfMLModelResourceModel struct {
 	Id          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
@@ -35,6 +48,7 @@ type TfMLModelResourceModel struct {
 	HostedBy    types.String `tfsdk:"hosted_by"`
 	DevelopedBy types.String `tfsdk:"developed_by"`
 	Family      types.String `tfsdk:"family"`
+	ExecConfig  TfMLModelExecConfig `tfsdk:"exec_config"`
 }
 
 func (r *MLModelResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -153,6 +167,31 @@ func (r *MLModelResource) Schema(ctx context.Context, req resource.SchemaRequest
 						"YI",
 						"ZEPHYR",
 					),
+				},
+			},
+			"exec_config": schema.ObjectAttribute{
+				AttributeTypes: map[string]attr.Type{
+					"model_identifier": schema.StringAttribute{
+						Description:         "The model identifier",
+						MarkdownDescription: "The model identifier",
+						Required:            true,
+					}.GetType(),
+					"base_url": schema.StringAttribute{
+						Description:         "The base URL",
+						MarkdownDescription: "The base URL",
+						Required:            true,
+					}.GetType(),
+					"metadata": schema.MapAttribute{
+						Description:         "The metadata",
+						MarkdownDescription: "The metadata",
+						Required:            true,
+					}.GetType(),
+					"features": schema.ListAttribute{
+						Description:         "The features",
+						MarkdownDescription: "The features",
+						Required:            true,
+						ElementType:         schema.StringAttribute{}.GetType(),
+					}.GetType(),
 				},
 			},
 		},
