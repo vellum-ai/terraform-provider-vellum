@@ -30,24 +30,20 @@ func Resource() resource.Resource {
 	return &MLModelResource{}
 }
 
-// type TfMLModelExecConfigMetadata := types.MapType {
-// 	ElementType: types.Object,
-// }
-
 type TfMLModelExecConfig struct {
 	ModelIdentifier types.String `tfsdk:"model_identifier"`
 	BaseUrl         types.String `tfsdk:"base_url"`
-	Metadata        types.Map `tfsdk:"metadata"`
 	Features        types.List   `tfsdk:"features"`
+	Metadata        types.Map    `tfsdk:"metadata"`
 }
 
 type TfMLModelResourceModel struct {
-	Id          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Visibility  types.String `tfsdk:"visibility"`
-	HostedBy    types.String `tfsdk:"hosted_by"`
-	DevelopedBy types.String `tfsdk:"developed_by"`
-	Family      types.String `tfsdk:"family"`
+	Id          types.String        `tfsdk:"id"`
+	Name        types.String        `tfsdk:"name"`
+	Visibility  types.String        `tfsdk:"visibility"`
+	HostedBy    types.String        `tfsdk:"hosted_by"`
+	DevelopedBy types.String        `tfsdk:"developed_by"`
+	Family      types.String        `tfsdk:"family"`
 	ExecConfig  TfMLModelExecConfig `tfsdk:"exec_config"`
 }
 
@@ -170,6 +166,9 @@ func (r *MLModelResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"exec_config": schema.ObjectAttribute{
+				Description:         "The execution configuration of the ML Model.",
+				MarkdownDescription: "The execution configuration of the ML Model.",
+				Required:            true,
 				AttributeTypes: map[string]attr.Type{
 					"model_identifier": schema.StringAttribute{
 						Description:         "The model identifier",
@@ -181,16 +180,16 @@ func (r *MLModelResource) Schema(ctx context.Context, req resource.SchemaRequest
 						MarkdownDescription: "The base URL",
 						Required:            true,
 					}.GetType(),
-					"metadata": schema.MapAttribute{
-						Description:         "The metadata",
-						MarkdownDescription: "The metadata",
-						Required:            true,
-					}.GetType(),
 					"features": schema.ListAttribute{
 						Description:         "The features",
 						MarkdownDescription: "The features",
 						Required:            true,
 						ElementType:         schema.StringAttribute{}.GetType(),
+					}.GetType(),
+					"metadata": schema.MapAttribute{
+						Description: "Arbitrary JSON object",
+						Required:    true,
+						ElementType: types.StringType,
 					}.GetType(),
 				},
 			},
