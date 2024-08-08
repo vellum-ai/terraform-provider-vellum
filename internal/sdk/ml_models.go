@@ -384,8 +384,8 @@ func (m *MlModelDisplayTagEnumValueLabel) String() string {
 type MlModelExecConfig struct {
 	ModelIdentifier string                  `json:"model_identifier"`
 	BaseUrl         string                  `json:"base_url"`
-	Metadata        map[string]interface{}  `json:"metadata,omitempty"`
-	Features        []MlModelFeature        `json:"features,omitempty"`
+	Metadata        map[string]string       `json:"metadata"`
+	Features        []MlModelFeature        `json:"features"`
 	TokenizerConfig *MlModelTokenizerConfig `json:"tokenizer_config,omitempty"`
 	RequestConfig   *MlModelRequestConfig   `json:"request_config,omitempty"`
 	ResponseConfig  *MlModelResponseConfig  `json:"response_config,omitempty"`
@@ -419,8 +419,8 @@ func (m *MlModelExecConfig) String() string {
 type MlModelExecConfigRequest struct {
 	ModelIdentifier string                         `json:"model_identifier"`
 	BaseUrl         string                         `json:"base_url"`
-	Metadata        map[string]interface{}         `json:"metadata,omitempty"`
-	Features        []MlModelFeature               `json:"features,omitempty"`
+	Metadata        map[string]interface{}         `json:"metadata"`
+	Features        []MlModelFeature               `json:"features"`
 	TokenizerConfig *MlModelTokenizerConfigRequest `json:"tokenizer_config,omitempty"`
 	RequestConfig   *MlModelRequestConfigRequest   `json:"request_config,omitempty"`
 	ResponseConfig  *MlModelResponseConfigRequest  `json:"response_config,omitempty"`

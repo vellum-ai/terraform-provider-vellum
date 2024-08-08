@@ -2,7 +2,8 @@ package ml_model
 
 import (
 	"context"
-
+	"encoding/json"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -15,14 +16,28 @@ func NewVellumMLModelCreateRequest(ctx context.Context, mlModelModel *TfMLModelR
 	developedBy, _ := vellum.NewMlModelDeveloperFromString(mlModelModel.DevelopedBy.ValueString())
 	family, _ := vellum.NewMlModelFamilyFromString(mlModelModel.Family.ValueString())
 
-	// TODO: Pass in actual values rather than dummy keys
-	// Create an empty slice for features
-	features := []vellum.MlModelFeature{"CHAT_MESSAGE_SYSTEM"}
+	features := []vellum.MlModelFeature{}
+	for _, feature := range mlModelModel.ExecConfig.Features.Elements() {
+		feature, _ := vellum.NewMlModelFeatureFromString(feature.(types.String).ValueString())
+		features = append(features, feature)
+	}
+
+	metadata := map[string]interface{}{}
+	for key, tfvalue := range mlModelModel.ExecConfig.Metadata.Elements() {
+		value := tfvalue.(types.String).ValueString()
+		var v interface{}
+		if err := json.Unmarshal([]byte(value), &v); err != nil {
+			metadata[key] = value
+		} else {
+			metadata[key] = v
+		}
+	}
+
 	execConfig := vellum.MlModelExecConfigRequest{
-		ModelIdentifier: "test",
-		BaseUrl:         "http://localhost:8080",
-		Metadata:        map[string]interface{}{"key": "value"},
+		ModelIdentifier: mlModelModel.ExecConfig.ModelIdentifier.ValueString(),
+		BaseUrl:         mlModelModel.ExecConfig.BaseUrl.ValueString(),
 		Features:        features,
+		Metadata:        metadata,
 	}
 
 	request := vellum.MlModelCreateRequest{
@@ -45,6 +60,30 @@ func NewTfMLModelModel(ctx context.Context, model *TfMLModelResourceModel, mlMod
 		HostedBy:    types.StringValue(string(mlModel.HostedBy)),
 		DevelopedBy: types.StringValue(string(mlModel.DevelopedBy.Value)),
 		Family:      types.StringValue(string(mlModel.Family.Value)),
+		ExecConfig: TfMLModelExecConfig{
+			ModelIdentifier: types.StringValue(mlModel.ExecConfig.ModelIdentifier),
+			BaseUrl:         types.StringValue(mlModel.ExecConfig.BaseUrl),
+			Features: types.ListValueMust(
+				types.StringType,
+				func() []attr.Value {
+					var features []attr.Value
+					for _, feature := range mlModel.ExecConfig.Features {
+						features = append(features, types.StringValue(string(feature)))
+					}
+					return features
+				}(),
+			),
+			Metadata: types.MapValueMust(
+				types.StringType,
+				func() map[string]attr.Value {
+					metadata := map[string]attr.Value{}
+					for key, value := range mlModel.ExecConfig.Metadata {
+						metadata[key] = types.StringValue(value)
+					}
+					return metadata
+				}(),
+			),
+		},
 	}
 
 	return mlModelModel, nil
