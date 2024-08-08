@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"terraform-provider-vellum/internal/provider/document_index"
+	"terraform-provider-vellum/internal/provider/ml_model"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -83,12 +84,14 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 func (p *VellumProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		document_index.Resource,
+		ml_model.Resource,
 	}
 }
 
 func (p *VellumProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		document_index.DataSource,
+		ml_model.DataSource,
 	}
 }
 

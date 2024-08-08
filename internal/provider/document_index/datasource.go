@@ -3,6 +3,8 @@ package document_index
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -41,10 +43,15 @@ func (d *DocumentIndexDataSource) Schema(ctx context.Context, req datasource.Sch
 		MarkdownDescription: "Document Index data source",
 
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Optional:            true,
+				Description:         "The Document Index's ID",
+				MarkdownDescription: "The Document Index's ID",
+			},
 			"name": schema.StringAttribute{
+				Optional:            true,
 				Description:         "A name that uniquely identifies this index within its workspace",
 				MarkdownDescription: "A name that uniquely identifies this index within its workspace",
-				Optional:            true,
 			},
 			"created": schema.StringAttribute{
 				Computed: true,
@@ -53,11 +60,6 @@ func (d *DocumentIndexDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:            true,
 				Description:         "The environment this document index is used in\n\n* `DEVELOPMENT` - Development\n* `STAGING` - Staging\n* `PRODUCTION` - Production",
 				MarkdownDescription: "The environment this document index is used in\n\n* `DEVELOPMENT` - Development\n* `STAGING` - Staging\n* `PRODUCTION` - Production",
-			},
-			"id": schema.StringAttribute{
-				Optional:            true,
-				Description:         "The Document Index's ID",
-				MarkdownDescription: "The Document Index's ID",
 			},
 			"label": schema.StringAttribute{
 				Computed:            true,
@@ -68,6 +70,12 @@ func (d *DocumentIndexDataSource) Schema(ctx context.Context, req datasource.Sch
 				Computed:            true,
 				Description:         "The current status of the document index\n\n* `ACTIVE` - Active\n* `ARCHIVED` - Archived",
 				MarkdownDescription: "The current status of the document index\n\n* `ACTIVE` - Active\n* `ARCHIVED` - Archived",
+				Validators: []validator.String{
+					stringvalidator.OneOf(
+						"ACTIVE",
+						"ARCHIVED",
+					),
+				},
 			},
 		},
 	}
@@ -106,13 +114,13 @@ func (d *DocumentIndexDataSource) Read(ctx context.Context, req datasource.ReadR
 		documentIndexRetrieveParameter = documentIndexModel.Id.ValueString()
 	}
 	if documentIndexRetrieveParameter == "" {
-		resp.Diagnostics.AddError("failed to read document index", "either `id` or `name` must be set")
+		resp.Diagnostics.AddError("failed to read Document Index", "either `id` or `name` must be set")
 		return
 	}
 
 	documentIndex, err := d.client.DocumentIndexes.Retrieve(ctx, documentIndexRetrieveParameter)
 	if err != nil {
-		resp.Diagnostics.AddError("error getting document index information", err.Error())
+		resp.Diagnostics.AddError("error getting Document Index information", err.Error())
 		return
 	}
 
