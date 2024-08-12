@@ -40,13 +40,29 @@ func NewVellumMLModelCreateRequest(ctx context.Context, mlModelModel *TfMLModelR
 		Metadata:        metadata,
 	}
 
+	customParameters := map[string]*vellum.OpenApiPropertyRequest{}
+
+	parameterConfig := vellum.MlModelParameterConfigRequest{
+		//Temperature: mlModelModel.ParameterConfig.Temperature.String(),
+		//MaxTokens        *OpenApiIntegerPropertyRequest     `json:"max_tokens,omitempty"`
+		//Stop
+		//TopP
+		//TopK
+		//FrequencyPenalty
+		//PresencePenalty
+		//LogitBias
+		CustomParameters: customParameters,
+	}
+
 	request := vellum.MlModelCreateRequest{
-		Name:        mlModelModel.Name.ValueString(),
-		Visibility:  &visibility,
-		Family:      family,
-		HostedBy:    hostedBy,
-		DevelopedBy: developedBy,
-		ExecConfig:  &execConfig,
+		Name:            mlModelModel.Name.ValueString(),
+		Visibility:      &visibility,
+		Family:          family,
+		HostedBy:        hostedBy,
+		DevelopedBy:     developedBy,
+		ExecConfig:      &execConfig,
+		ParameterConfig: &parameterConfig,
+		//DisplayConfig:   &displayConfig,
 	}
 
 	return &request, nil

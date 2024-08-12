@@ -30,21 +30,147 @@ func Resource() resource.Resource {
 	return &MLModelResource{}
 }
 
+type TfHuggingFaceTokenizerConfig struct {
+	Name types.String `tfsdk:"name"`
+	Path types.String `tfsdk:"path"`
+}
+
+type TfTikTokenTokenizerConfig struct {
+	Name types.String `tfsdk:"name"`
+}
+
+type TfMlModelTokenizerConfig struct {
+	Type        types.String                 `tfsdk:"type"`
+	HuggingFace TfHuggingFaceTokenizerConfig `tfsdk:"hugging_face"`
+	Tiktoken    TfTikTokenTokenizerConfig    `tfsdk:"tiktoken"`
+}
+
 type TfMLModelExecConfig struct {
-	ModelIdentifier types.String `tfsdk:"model_identifier"`
-	BaseUrl         types.String `tfsdk:"base_url"`
-	Features        types.List   `tfsdk:"features"`
-	Metadata        types.Map    `tfsdk:"metadata"`
+	ModelIdentifier        types.String             `tfsdk:"model_identifier"`
+	BaseUrl                types.String             `tfsdk:"base_url"`
+	Features               types.List               `tfsdk:"features"`
+	Metadata               types.Map                `tfsdk:"metadata"`
+	TokenizerConfig        TfMlModelTokenizerConfig `tfsdk:"tokenizer_config"`
+	ForceSystemCredentials types.Bool               `tfsdk:"force_system_credentials"`
+}
+
+type TfOpenApiNumberProperty struct {
+	Minimum          types.Float64 `tfsdk:"minimum"`
+	Maximum          types.Float64 `tfsdk:"maximum"`
+	Format           types.String  `tfsdk:"format"`
+	ExclusiveMinimum types.Bool    `tfsdk:"exclusive_minimum"`
+	ExclusiveMaximum types.Bool    `tfsdk:"exclusive_maximum"`
+	Default          types.Float64 `tfsdk:"default"`
+	Title            types.String  `tfsdk:"title"`
+	Description      types.String  `tfsdk:"description"`
+}
+
+type TfOpenApiIntegerProperty struct {
+	Minimum          types.Int64  `tfsdk:"minimum"`
+	Maximum          types.Int64  `tfsdk:"maximum"`
+	ExclusiveMinimum types.Bool   `tfsdk:"exclusive_minimum"`
+	ExclusiveMaximum types.Bool   `tfsdk:"exclusive_maximum"`
+	Default          types.Int64  `tfsdk:"default"`
+	Title            types.String `tfsdk:"title"`
+	Description      types.String `tfsdk:"description"`
+}
+
+type TfOpenApiArrayProperty struct {
+	MinItems    types.Int64       `tfsdk:"min_items"`
+	MaxItems    types.Int64       `tfsdk:"max_items"`
+	UniqueItems types.Bool        `tfsdk:"unique_items"`
+	Items       TfOpenApiProperty `tfsdk:"items"`
+	PrefixItems types.List        `tfsdk:"prefix_items"`
+	Contains    TfOpenApiProperty `tfsdk:"contains"`
+	MinContains types.Int64       `tfsdk:"min_contains"`
+	MaxContains types.Int64       `tfsdk:"max_contains"`
+	Default     types.List        `tfsdk:"default"`
+	Title       types.String      `tfsdk:"title"`
+	Description types.String      `tfsdk:"description"`
+}
+
+type TfOpenApiObjectProperty struct {
+	Properties           types.Map         `tfsdk:"properties"`
+	Required             types.List        `tfsdk:"required"`
+	MinProperties        types.Int64       `tfsdk:"min_properties"`
+	MaxProperties        types.Int64       `tfsdk:"max_properties"`
+	PropertyNames        TfOpenApiProperty `tfsdk:"property_names"`
+	AdditionalProperties TfOpenApiProperty `tfsdk:"additional_properties"`
+	PatternProperties    types.Map         `tfsdk:"pattern_properties"`
+	Default              types.Map         `tfsdk:"default"`
+	Title                types.String      `tfsdk:"title"`
+	Description          types.String      `tfsdk:"description"`
+}
+
+type TfOpenApiStringProperty struct {
+	MinLength   types.Int64  `tfsdk:"min_length"`
+	MaxLength   types.Int64  `tfsdk:"max_length"`
+	Pattern     types.String `tfsdk:"pattern"`
+	Format      types.String `tfsdk:"format"`
+	Default     types.String `tfsdk:"default"`
+	Title       types.String `tfsdk:"title"`
+	Description types.String `tfsdk:"description"`
+}
+
+type TfOpenApiBooleanProperty struct {
+	Default     types.Bool   `tfsdk:"default"`
+	Title       types.String `tfsdk:"title"`
+	Description types.String `tfsdk:"description"`
+}
+
+type TfOpenApiOneOfProperty struct {
+	OneOf       types.List   `tfsdk:"oneOf"`
+	Title       types.String `tfsdk:"title"`
+	Description types.String `tfsdk:"description"`
+}
+
+type TfOpenApiConstProperty struct {
+	Title       types.String `tfsdk:"title"`
+	Description types.String `tfsdk:"description"`
+	Const       types.String `tfsdk:"const"`
+}
+
+type TfOpenApiProperty struct {
+	Type    types.String
+	Array   TfOpenApiArrayProperty
+	Object  TfOpenApiObjectProperty
+	Integer TfOpenApiIntegerProperty
+	Number  TfOpenApiNumberProperty
+	String  TfOpenApiStringProperty
+	Boolean TfOpenApiBooleanProperty
+	OneOf   TfOpenApiOneOfProperty
+	Const   TfOpenApiConstProperty
+}
+
+type TfMlModelParameterConfig struct {
+	Temperature      types.Number `tfsdk:"temperature"`
+	MaxTokens        types.Int64  `tfsdk:"max_tokens"`
+	Stop             types.List   `tfsdk:"stop"`
+	TopP             types.Number `tfsdk:"top_p"`
+	TopK             types.Int64  `tfsdk:"top_k"`
+	FrequencyPenalty types.Number `tfsdk:"frequency_penalty"`
+	PresencePenalty  types.Number `tfsdk:"presence_penalty"`
+	LogitBias        types.Map    `tfsdk:"logit_bias"`
+	CustomParameters types.Map    `tfsdk:"custom_parameters"`
+}
+
+type TfMlModelDisplayConfigLabelled struct {
+	Label                  types.String  `tfsdk:"label"`
+	Description            types.String  `tfsdk:"description"`
+	Tags                   types.String  `tfsdk:"tags"`
+	DefaultDisplayPriority types.Float64 `tfsdk:"default_display_priority"`
 }
 
 type TfMLModelResourceModel struct {
-	Id          types.String        `tfsdk:"id"`
-	Name        types.String        `tfsdk:"name"`
-	Visibility  types.String        `tfsdk:"visibility"`
-	HostedBy    types.String        `tfsdk:"hosted_by"`
-	DevelopedBy types.String        `tfsdk:"developed_by"`
-	Family      types.String        `tfsdk:"family"`
-	ExecConfig  TfMLModelExecConfig `tfsdk:"exec_config"`
+	Id              types.String                   `tfsdk:"id"`
+	Name            types.String                   `tfsdk:"name"`
+	Visibility      types.String                   `tfsdk:"visibility"`
+	HostedBy        types.String                   `tfsdk:"hosted_by"`
+	DevelopedBy     types.String                   `tfsdk:"developed_by"`
+	Family          types.String                   `tfsdk:"family"`
+	ExecConfig      TfMLModelExecConfig            `tfsdk:"exec_config"`
+	ParameterConfig TfMlModelParameterConfig       `tfsdk:"parameter_config"`
+	DisplayConfig   TfMlModelDisplayConfigLabelled `tfsdk:"display_config"`
 }
 
 func (r *MLModelResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
