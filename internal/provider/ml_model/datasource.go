@@ -181,7 +181,7 @@ func (d *MLModelDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	MLModel, err := d.client.MLModels.Retrieve(ctx, mlModelRetrieveParameter)
+	MLModel, err := d.client.MlModels.Retrieve(ctx, mlModelRetrieveParameter)
 	if err != nil {
 		resp.Diagnostics.AddError("error getting ML Model information", err.Error())
 		return
