@@ -11,20 +11,30 @@ import (
 
 func NewVellumDocumentIndexCreateRequest(ctx context.Context, documentIndexModel *TfDocumentIndexResourceModel) (*vellum.DocumentIndexCreateRequest, diag.Diagnostics) {
 	// TODO: Replace this with data.indexing_config, improve indexing_config param in vellum backend.
-	DefaultIndexingConfig := map[string]interface{}{
-		"chunking": map[string]interface{}{
-			"chunker_name": "sentence-chunker",
-			"chunker_config": map[string]interface{}{
-				"character_limit":   1000,
-				"min_overlap_ratio": 0.5,
+	DefaultIndexingConfig := vellum.DocumentIndexIndexingConfigRequest{
+		Vectorizer: &vellum.IndexingConfigVectorizerRequest{
+			ModelName: "hkunlp/instructor-xl",
+			HkunlpInstructorXl: &vellum.HkunlpInstructorXlVectorizerRequest{
+				Config: &vellum.InstructorVectorizerConfigRequest{
+					InstructionDomain:           "",
+					InstructionQueryTextType:    "plain_text",
+					InstructionDocumentTextType: "plain_text",
+				},
 			},
 		},
-		"vectorizer": map[string]interface{}{
-			"model_name": "hkunlp/instructor-xl",
-			"config": map[string]interface{}{
-				"instruction_domain":             "",
-				"instruction_document_text_type": "plain_text",
-				"instruction_query_text_type":    "plain_text",
+		Chunking: &vellum.DocumentIndexChunkingRequest{
+			ChunkerName: "sentence-chunker",
+			SentenceChunker: &vellum.SentenceChunkingRequest{
+				ChunkerConfig: &vellum.SentenceChunkerConfigRequest{
+					CharacterLimit: func() *int {
+						v := 1000
+						return &v
+					}(),
+					MinOverlapRatio: func() *float64 {
+						v := 0.5
+						return &v
+					}(),
+				},
 			},
 		},
 	}
@@ -32,7 +42,7 @@ func NewVellumDocumentIndexCreateRequest(ctx context.Context, documentIndexModel
 	request := vellum.DocumentIndexCreateRequest{
 		Label:          documentIndexModel.Label.ValueString(),
 		Name:           documentIndexModel.Name.ValueString(),
-		IndexingConfig: DefaultIndexingConfig,
+		IndexingConfig: &DefaultIndexingConfig,
 	}
 
 	return &request, nil
