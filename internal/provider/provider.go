@@ -8,6 +8,7 @@ import (
 	"os"
 	"terraform-provider-vellum/internal/provider/document_index"
 	"terraform-provider-vellum/internal/provider/ml_model"
+	"terraform-provider-vellum/internal/sdk/option"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -72,9 +73,11 @@ func (p *VellumProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	client := vellumclient.NewClient(
-		vellumclient.WithApiKeyAndBaseUrl(
-			os.Getenv("VELLUM_API_KEY"),
+		option.WithBaseURL(
 			baseUrl,
+		),
+		option.WithApiKey(
+			os.Getenv("VELLUM_API_KEY"),
 		),
 	)
 	resp.DataSourceData = client

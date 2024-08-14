@@ -232,7 +232,7 @@ func (r *MLModelResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	mlModel, err := r.client.MLModels.Create(ctx, mlModelRequest)
+	mlModel, err := r.client.MlModels.Create(ctx, mlModelRequest)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ML Model, got error: %s", err))
 		return
@@ -259,7 +259,7 @@ func (r *MLModelResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	mlModel, err := r.client.MLModels.Retrieve(ctx, mlModelState.Id.ValueString())
+	mlModel, err := r.client.MlModels.Retrieve(ctx, mlModelState.Id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read ML Model, got error: %s", err))
 		return
@@ -295,7 +295,7 @@ func (r *MLModelResource) Update(ctx context.Context, req resource.UpdateRequest
 		visibility = &s
 	}
 
-	mlModel, err := r.client.MLModels.PartialUpdate(ctx,
+	mlModel, err := r.client.MlModels.PartialUpdate(ctx,
 		id,
 		&vellum.PatchedMlModelUpdateRequest{
 			Visibility: visibility,
@@ -329,7 +329,7 @@ func (r *MLModelResource) Delete(ctx context.Context, req resource.DeleteRequest
 	id := mlModelState.Id.ValueString()
 	visibility := vellum.VisibilityEnum("DISABLED")
 
-	_, err := r.client.MLModels.PartialUpdate(ctx,
+	_, err := r.client.MlModels.PartialUpdate(ctx,
 		id,
 		&vellum.PatchedMlModelUpdateRequest{
 			Visibility: &visibility,
