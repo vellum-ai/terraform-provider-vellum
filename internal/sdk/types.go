@@ -7955,10 +7955,10 @@ func (m *MlModelDisplayTagEnumValueLabel) String() string {
 }
 
 type MlModelExecConfig struct {
-	ModelIdentifier string                 `json:"model_identifier" url:"model_identifier"`
-	BaseUrl         string                 `json:"base_url" url:"base_url"`
-	Metadata        map[string]interface{} `json:"metadata" url:"metadata"`
-	Features        []MlModelFeature       `json:"features" url:"features"`
+	ModelIdentifier string            `json:"model_identifier" url:"model_identifier"`
+	BaseUrl         string            `json:"base_url" url:"base_url"`
+	Metadata        map[string]string `json:"metadata" url:"metadata"`
+	Features        []MlModelFeature  `json:"features" url:"features"`
 	// Can only be set when using an internal service token.
 	ForceSystemCredentials *bool                   `json:"force_system_credentials,omitempty" url:"force_system_credentials,omitempty"`
 	TokenizerConfig        *MlModelTokenizerConfig `json:"tokenizer_config,omitempty" url:"tokenizer_config,omitempty"`
