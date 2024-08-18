@@ -10,11 +10,9 @@ import (
 )
 
 func NewVellumDocumentIndexCreateRequest(ctx context.Context, documentIndexModel *TfDocumentIndexResourceModel) (*vellum.DocumentIndexCreateRequest, diag.Diagnostics) {
-	// TODO: Replace this with data.indexing_config, improve indexing_config param in vellum backend.
 	DefaultIndexingConfig := vellum.DocumentIndexIndexingConfigRequest{
 		Vectorizer: &vellum.IndexingConfigVectorizerRequest{
-			ModelName: "hkunlp/instructor-xl",
-			HkunlpInstructorXl: &vellum.HkunlpInstructorXlVectorizerRequest{
+			HkunlpInstructorXlVectorizerRequest: &vellum.HkunlpInstructorXlVectorizerRequest{
 				Config: &vellum.InstructorVectorizerConfigRequest{
 					InstructionDomain:           "",
 					InstructionQueryTextType:    "plain_text",
@@ -23,8 +21,7 @@ func NewVellumDocumentIndexCreateRequest(ctx context.Context, documentIndexModel
 			},
 		},
 		Chunking: &vellum.DocumentIndexChunkingRequest{
-			ChunkerName: "sentence-chunker",
-			SentenceChunker: &vellum.SentenceChunkingRequest{
+			SentenceChunkingRequest: &vellum.SentenceChunkingRequest{
 				ChunkerConfig: &vellum.SentenceChunkerConfigRequest{
 					CharacterLimit: func() *int {
 						v := 1000
