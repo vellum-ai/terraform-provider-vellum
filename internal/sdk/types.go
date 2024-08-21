@@ -139,7 +139,8 @@ type AddOpenaiApiKeyEnum = bool
 
 // A Node Result Event emitted from an API Node.
 type ApiNodeResult struct {
-	Data *ApiNodeResultData `json:"data" url:"data"`
+	Data  *ApiNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -149,15 +150,28 @@ func (a *ApiNodeResult) GetExtraProperties() map[string]interface{} {
 	return a.extraProperties
 }
 
+func (a *ApiNodeResult) Type() string {
+	return a.type_
+}
+
 func (a *ApiNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler ApiNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ApiNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*a = ApiNodeResult(value)
+	*a = ApiNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "API" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", a, "API", unmarshaler.Type)
+	}
+	a.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *a)
+	extraProperties, err := core.ExtractExtraProperties(data, *a, "type")
 	if err != nil {
 		return err
 	}
@@ -165,6 +179,18 @@ func (a *ApiNodeResult) UnmarshalJSON(data []byte) error {
 
 	a._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (a *ApiNodeResult) MarshalJSON() ([]byte, error) {
+	type embed ApiNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+		Type:  "API",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (a *ApiNodeResult) String() string {
@@ -228,6 +254,7 @@ func (a *ApiNodeResultData) String() string {
 // A list of chat message content items.
 type ArrayChatMessageContent struct {
 	Value []*ArrayChatMessageContentItem `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -237,15 +264,28 @@ func (a *ArrayChatMessageContent) GetExtraProperties() map[string]interface{} {
 	return a.extraProperties
 }
 
+func (a *ArrayChatMessageContent) Type() string {
+	return a.type_
+}
+
 func (a *ArrayChatMessageContent) UnmarshalJSON(data []byte) error {
-	type unmarshaler ArrayChatMessageContent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ArrayChatMessageContent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*a = ArrayChatMessageContent(value)
+	*a = ArrayChatMessageContent(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", a, "ARRAY", unmarshaler.Type)
+	}
+	a.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *a)
+	extraProperties, err := core.ExtractExtraProperties(data, *a, "type")
 	if err != nil {
 		return err
 	}
@@ -253,6 +293,18 @@ func (a *ArrayChatMessageContent) UnmarshalJSON(data []byte) error {
 
 	a._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (a *ArrayChatMessageContent) MarshalJSON() ([]byte, error) {
+	type embed ArrayChatMessageContent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (a *ArrayChatMessageContent) String() string {
@@ -268,148 +320,123 @@ func (a *ArrayChatMessageContent) String() string {
 }
 
 type ArrayChatMessageContentItem struct {
-	Type         string
-	String       *StringChatMessageContent
-	FunctionCall *FunctionCallChatMessageContent
-	Image        *ImageChatMessageContent
+	StringChatMessageContent       *StringChatMessageContent
+	FunctionCallChatMessageContent *FunctionCallChatMessageContent
+	ImageChatMessageContent        *ImageChatMessageContent
 }
 
 func (a *ArrayChatMessageContentItem) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringChatMessageContent := new(StringChatMessageContent)
+	if err := json.Unmarshal(data, &valueStringChatMessageContent); err == nil {
+		a.StringChatMessageContent = valueStringChatMessageContent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueFunctionCallChatMessageContent := new(FunctionCallChatMessageContent)
+	if err := json.Unmarshal(data, &valueFunctionCallChatMessageContent); err == nil {
+		a.FunctionCallChatMessageContent = valueFunctionCallChatMessageContent
+		return nil
 	}
-	a.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.String = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.FunctionCall = value
-	case "IMAGE":
-		value := new(ImageChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Image = value
+	valueImageChatMessageContent := new(ImageChatMessageContent)
+	if err := json.Unmarshal(data, &valueImageChatMessageContent); err == nil {
+		a.ImageChatMessageContent = valueImageChatMessageContent
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, a)
 }
 
 func (a ArrayChatMessageContentItem) MarshalJSON() ([]byte, error) {
-	if a.String != nil {
-		return core.MarshalJSONWithExtraProperty(a.String, "type", "STRING")
+	if a.StringChatMessageContent != nil {
+		return json.Marshal(a.StringChatMessageContent)
 	}
-	if a.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(a.FunctionCall, "type", "FUNCTION_CALL")
+	if a.FunctionCallChatMessageContent != nil {
+		return json.Marshal(a.FunctionCallChatMessageContent)
 	}
-	if a.Image != nil {
-		return core.MarshalJSONWithExtraProperty(a.Image, "type", "IMAGE")
+	if a.ImageChatMessageContent != nil {
+		return json.Marshal(a.ImageChatMessageContent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", a)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayChatMessageContentItemVisitor interface {
-	VisitString(*StringChatMessageContent) error
-	VisitFunctionCall(*FunctionCallChatMessageContent) error
-	VisitImage(*ImageChatMessageContent) error
+	VisitStringChatMessageContent(*StringChatMessageContent) error
+	VisitFunctionCallChatMessageContent(*FunctionCallChatMessageContent) error
+	VisitImageChatMessageContent(*ImageChatMessageContent) error
 }
 
 func (a *ArrayChatMessageContentItem) Accept(visitor ArrayChatMessageContentItemVisitor) error {
-	if a.String != nil {
-		return visitor.VisitString(a.String)
+	if a.StringChatMessageContent != nil {
+		return visitor.VisitStringChatMessageContent(a.StringChatMessageContent)
 	}
-	if a.FunctionCall != nil {
-		return visitor.VisitFunctionCall(a.FunctionCall)
+	if a.FunctionCallChatMessageContent != nil {
+		return visitor.VisitFunctionCallChatMessageContent(a.FunctionCallChatMessageContent)
 	}
-	if a.Image != nil {
-		return visitor.VisitImage(a.Image)
+	if a.ImageChatMessageContent != nil {
+		return visitor.VisitImageChatMessageContent(a.ImageChatMessageContent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", a)
+	return fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayChatMessageContentItemRequest struct {
-	Type         string
-	String       *StringChatMessageContentRequest
-	FunctionCall *FunctionCallChatMessageContentRequest
-	Image        *ImageChatMessageContentRequest
+	StringChatMessageContentRequest       *StringChatMessageContentRequest
+	FunctionCallChatMessageContentRequest *FunctionCallChatMessageContentRequest
+	ImageChatMessageContentRequest        *ImageChatMessageContentRequest
 }
 
 func (a *ArrayChatMessageContentItemRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringChatMessageContentRequest := new(StringChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueStringChatMessageContentRequest); err == nil {
+		a.StringChatMessageContentRequest = valueStringChatMessageContentRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueFunctionCallChatMessageContentRequest := new(FunctionCallChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueFunctionCallChatMessageContentRequest); err == nil {
+		a.FunctionCallChatMessageContentRequest = valueFunctionCallChatMessageContentRequest
+		return nil
 	}
-	a.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.String = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.FunctionCall = value
-	case "IMAGE":
-		value := new(ImageChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Image = value
+	valueImageChatMessageContentRequest := new(ImageChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueImageChatMessageContentRequest); err == nil {
+		a.ImageChatMessageContentRequest = valueImageChatMessageContentRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, a)
 }
 
 func (a ArrayChatMessageContentItemRequest) MarshalJSON() ([]byte, error) {
-	if a.String != nil {
-		return core.MarshalJSONWithExtraProperty(a.String, "type", "STRING")
+	if a.StringChatMessageContentRequest != nil {
+		return json.Marshal(a.StringChatMessageContentRequest)
 	}
-	if a.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(a.FunctionCall, "type", "FUNCTION_CALL")
+	if a.FunctionCallChatMessageContentRequest != nil {
+		return json.Marshal(a.FunctionCallChatMessageContentRequest)
 	}
-	if a.Image != nil {
-		return core.MarshalJSONWithExtraProperty(a.Image, "type", "IMAGE")
+	if a.ImageChatMessageContentRequest != nil {
+		return json.Marshal(a.ImageChatMessageContentRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", a)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayChatMessageContentItemRequestVisitor interface {
-	VisitString(*StringChatMessageContentRequest) error
-	VisitFunctionCall(*FunctionCallChatMessageContentRequest) error
-	VisitImage(*ImageChatMessageContentRequest) error
+	VisitStringChatMessageContentRequest(*StringChatMessageContentRequest) error
+	VisitFunctionCallChatMessageContentRequest(*FunctionCallChatMessageContentRequest) error
+	VisitImageChatMessageContentRequest(*ImageChatMessageContentRequest) error
 }
 
 func (a *ArrayChatMessageContentItemRequest) Accept(visitor ArrayChatMessageContentItemRequestVisitor) error {
-	if a.String != nil {
-		return visitor.VisitString(a.String)
+	if a.StringChatMessageContentRequest != nil {
+		return visitor.VisitStringChatMessageContentRequest(a.StringChatMessageContentRequest)
 	}
-	if a.FunctionCall != nil {
-		return visitor.VisitFunctionCall(a.FunctionCall)
+	if a.FunctionCallChatMessageContentRequest != nil {
+		return visitor.VisitFunctionCallChatMessageContentRequest(a.FunctionCallChatMessageContentRequest)
 	}
-	if a.Image != nil {
-		return visitor.VisitImage(a.Image)
+	if a.ImageChatMessageContentRequest != nil {
+		return visitor.VisitImageChatMessageContentRequest(a.ImageChatMessageContentRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", a)
+	return fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 // A list of chat message content items.
 type ArrayChatMessageContentRequest struct {
 	Value []*ArrayChatMessageContentItemRequest `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -419,15 +446,28 @@ func (a *ArrayChatMessageContentRequest) GetExtraProperties() map[string]interfa
 	return a.extraProperties
 }
 
+func (a *ArrayChatMessageContentRequest) Type() string {
+	return a.type_
+}
+
 func (a *ArrayChatMessageContentRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ArrayChatMessageContentRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ArrayChatMessageContentRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*a = ArrayChatMessageContentRequest(value)
+	*a = ArrayChatMessageContentRequest(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", a, "ARRAY", unmarshaler.Type)
+	}
+	a.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *a)
+	extraProperties, err := core.ExtractExtraProperties(data, *a, "type")
 	if err != nil {
 		return err
 	}
@@ -435,6 +475,18 @@ func (a *ArrayChatMessageContentRequest) UnmarshalJSON(data []byte) error {
 
 	a._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (a *ArrayChatMessageContentRequest) MarshalJSON() ([]byte, error) {
+	type embed ArrayChatMessageContentRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*a),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (a *ArrayChatMessageContentRequest) String() string {
@@ -450,344 +502,297 @@ func (a *ArrayChatMessageContentRequest) String() string {
 }
 
 type ArrayVariableValueItem struct {
-	Type         string
-	String       *StringVariableValue
-	Number       *NumberVariableValue
-	Json         *JsonVariableValue
-	Error        *ErrorVariableValue
-	FunctionCall *FunctionCallVariableValue
-	Image        *ImageVariableValue
+	StringVariableValue       *StringVariableValue
+	NumberVariableValue       *NumberVariableValue
+	JsonVariableValue         *JsonVariableValue
+	ErrorVariableValue        *ErrorVariableValue
+	FunctionCallVariableValue *FunctionCallVariableValue
+	ImageVariableValue        *ImageVariableValue
 }
 
 func (a *ArrayVariableValueItem) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringVariableValue := new(StringVariableValue)
+	if err := json.Unmarshal(data, &valueStringVariableValue); err == nil {
+		a.StringVariableValue = valueStringVariableValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNumberVariableValue := new(NumberVariableValue)
+	if err := json.Unmarshal(data, &valueNumberVariableValue); err == nil {
+		a.NumberVariableValue = valueNumberVariableValue
+		return nil
 	}
-	a.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.String = value
-	case "NUMBER":
-		value := new(NumberVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Number = value
-	case "JSON":
-		value := new(JsonVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Json = value
-	case "ERROR":
-		value := new(ErrorVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Error = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.FunctionCall = value
-	case "IMAGE":
-		value := new(ImageVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Image = value
+	valueJsonVariableValue := new(JsonVariableValue)
+	if err := json.Unmarshal(data, &valueJsonVariableValue); err == nil {
+		a.JsonVariableValue = valueJsonVariableValue
+		return nil
 	}
-	return nil
+	valueErrorVariableValue := new(ErrorVariableValue)
+	if err := json.Unmarshal(data, &valueErrorVariableValue); err == nil {
+		a.ErrorVariableValue = valueErrorVariableValue
+		return nil
+	}
+	valueFunctionCallVariableValue := new(FunctionCallVariableValue)
+	if err := json.Unmarshal(data, &valueFunctionCallVariableValue); err == nil {
+		a.FunctionCallVariableValue = valueFunctionCallVariableValue
+		return nil
+	}
+	valueImageVariableValue := new(ImageVariableValue)
+	if err := json.Unmarshal(data, &valueImageVariableValue); err == nil {
+		a.ImageVariableValue = valueImageVariableValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, a)
 }
 
 func (a ArrayVariableValueItem) MarshalJSON() ([]byte, error) {
-	if a.String != nil {
-		return core.MarshalJSONWithExtraProperty(a.String, "type", "STRING")
+	if a.StringVariableValue != nil {
+		return json.Marshal(a.StringVariableValue)
 	}
-	if a.Number != nil {
-		return core.MarshalJSONWithExtraProperty(a.Number, "type", "NUMBER")
+	if a.NumberVariableValue != nil {
+		return json.Marshal(a.NumberVariableValue)
 	}
-	if a.Json != nil {
-		return core.MarshalJSONWithExtraProperty(a.Json, "type", "JSON")
+	if a.JsonVariableValue != nil {
+		return json.Marshal(a.JsonVariableValue)
 	}
-	if a.Error != nil {
-		return core.MarshalJSONWithExtraProperty(a.Error, "type", "ERROR")
+	if a.ErrorVariableValue != nil {
+		return json.Marshal(a.ErrorVariableValue)
 	}
-	if a.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(a.FunctionCall, "type", "FUNCTION_CALL")
+	if a.FunctionCallVariableValue != nil {
+		return json.Marshal(a.FunctionCallVariableValue)
 	}
-	if a.Image != nil {
-		return core.MarshalJSONWithExtraProperty(a.Image, "type", "IMAGE")
+	if a.ImageVariableValue != nil {
+		return json.Marshal(a.ImageVariableValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", a)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayVariableValueItemVisitor interface {
-	VisitString(*StringVariableValue) error
-	VisitNumber(*NumberVariableValue) error
-	VisitJson(*JsonVariableValue) error
-	VisitError(*ErrorVariableValue) error
-	VisitFunctionCall(*FunctionCallVariableValue) error
-	VisitImage(*ImageVariableValue) error
+	VisitStringVariableValue(*StringVariableValue) error
+	VisitNumberVariableValue(*NumberVariableValue) error
+	VisitJsonVariableValue(*JsonVariableValue) error
+	VisitErrorVariableValue(*ErrorVariableValue) error
+	VisitFunctionCallVariableValue(*FunctionCallVariableValue) error
+	VisitImageVariableValue(*ImageVariableValue) error
 }
 
 func (a *ArrayVariableValueItem) Accept(visitor ArrayVariableValueItemVisitor) error {
-	if a.String != nil {
-		return visitor.VisitString(a.String)
+	if a.StringVariableValue != nil {
+		return visitor.VisitStringVariableValue(a.StringVariableValue)
 	}
-	if a.Number != nil {
-		return visitor.VisitNumber(a.Number)
+	if a.NumberVariableValue != nil {
+		return visitor.VisitNumberVariableValue(a.NumberVariableValue)
 	}
-	if a.Json != nil {
-		return visitor.VisitJson(a.Json)
+	if a.JsonVariableValue != nil {
+		return visitor.VisitJsonVariableValue(a.JsonVariableValue)
 	}
-	if a.Error != nil {
-		return visitor.VisitError(a.Error)
+	if a.ErrorVariableValue != nil {
+		return visitor.VisitErrorVariableValue(a.ErrorVariableValue)
 	}
-	if a.FunctionCall != nil {
-		return visitor.VisitFunctionCall(a.FunctionCall)
+	if a.FunctionCallVariableValue != nil {
+		return visitor.VisitFunctionCallVariableValue(a.FunctionCallVariableValue)
 	}
-	if a.Image != nil {
-		return visitor.VisitImage(a.Image)
+	if a.ImageVariableValue != nil {
+		return visitor.VisitImageVariableValue(a.ImageVariableValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", a)
+	return fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayVellumValueItem struct {
-	Type         string
-	String       *StringVellumValue
-	Number       *NumberVellumValue
-	Json         *JsonVellumValue
-	Image        *ImageVellumValue
-	FunctionCall *FunctionCallVellumValue
-	Error        *ErrorVellumValue
+	StringVellumValue       *StringVellumValue
+	NumberVellumValue       *NumberVellumValue
+	JsonVellumValue         *JsonVellumValue
+	ImageVellumValue        *ImageVellumValue
+	FunctionCallVellumValue *FunctionCallVellumValue
+	ErrorVellumValue        *ErrorVellumValue
 }
 
 func (a *ArrayVellumValueItem) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringVellumValue := new(StringVellumValue)
+	if err := json.Unmarshal(data, &valueStringVellumValue); err == nil {
+		a.StringVellumValue = valueStringVellumValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNumberVellumValue := new(NumberVellumValue)
+	if err := json.Unmarshal(data, &valueNumberVellumValue); err == nil {
+		a.NumberVellumValue = valueNumberVellumValue
+		return nil
 	}
-	a.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.String = value
-	case "NUMBER":
-		value := new(NumberVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Number = value
-	case "JSON":
-		value := new(JsonVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Json = value
-	case "IMAGE":
-		value := new(ImageVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Image = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.FunctionCall = value
-	case "ERROR":
-		value := new(ErrorVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Error = value
+	valueJsonVellumValue := new(JsonVellumValue)
+	if err := json.Unmarshal(data, &valueJsonVellumValue); err == nil {
+		a.JsonVellumValue = valueJsonVellumValue
+		return nil
 	}
-	return nil
+	valueImageVellumValue := new(ImageVellumValue)
+	if err := json.Unmarshal(data, &valueImageVellumValue); err == nil {
+		a.ImageVellumValue = valueImageVellumValue
+		return nil
+	}
+	valueFunctionCallVellumValue := new(FunctionCallVellumValue)
+	if err := json.Unmarshal(data, &valueFunctionCallVellumValue); err == nil {
+		a.FunctionCallVellumValue = valueFunctionCallVellumValue
+		return nil
+	}
+	valueErrorVellumValue := new(ErrorVellumValue)
+	if err := json.Unmarshal(data, &valueErrorVellumValue); err == nil {
+		a.ErrorVellumValue = valueErrorVellumValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, a)
 }
 
 func (a ArrayVellumValueItem) MarshalJSON() ([]byte, error) {
-	if a.String != nil {
-		return core.MarshalJSONWithExtraProperty(a.String, "type", "STRING")
+	if a.StringVellumValue != nil {
+		return json.Marshal(a.StringVellumValue)
 	}
-	if a.Number != nil {
-		return core.MarshalJSONWithExtraProperty(a.Number, "type", "NUMBER")
+	if a.NumberVellumValue != nil {
+		return json.Marshal(a.NumberVellumValue)
 	}
-	if a.Json != nil {
-		return core.MarshalJSONWithExtraProperty(a.Json, "type", "JSON")
+	if a.JsonVellumValue != nil {
+		return json.Marshal(a.JsonVellumValue)
 	}
-	if a.Image != nil {
-		return core.MarshalJSONWithExtraProperty(a.Image, "type", "IMAGE")
+	if a.ImageVellumValue != nil {
+		return json.Marshal(a.ImageVellumValue)
 	}
-	if a.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(a.FunctionCall, "type", "FUNCTION_CALL")
+	if a.FunctionCallVellumValue != nil {
+		return json.Marshal(a.FunctionCallVellumValue)
 	}
-	if a.Error != nil {
-		return core.MarshalJSONWithExtraProperty(a.Error, "type", "ERROR")
+	if a.ErrorVellumValue != nil {
+		return json.Marshal(a.ErrorVellumValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", a)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayVellumValueItemVisitor interface {
-	VisitString(*StringVellumValue) error
-	VisitNumber(*NumberVellumValue) error
-	VisitJson(*JsonVellumValue) error
-	VisitImage(*ImageVellumValue) error
-	VisitFunctionCall(*FunctionCallVellumValue) error
-	VisitError(*ErrorVellumValue) error
+	VisitStringVellumValue(*StringVellumValue) error
+	VisitNumberVellumValue(*NumberVellumValue) error
+	VisitJsonVellumValue(*JsonVellumValue) error
+	VisitImageVellumValue(*ImageVellumValue) error
+	VisitFunctionCallVellumValue(*FunctionCallVellumValue) error
+	VisitErrorVellumValue(*ErrorVellumValue) error
 }
 
 func (a *ArrayVellumValueItem) Accept(visitor ArrayVellumValueItemVisitor) error {
-	if a.String != nil {
-		return visitor.VisitString(a.String)
+	if a.StringVellumValue != nil {
+		return visitor.VisitStringVellumValue(a.StringVellumValue)
 	}
-	if a.Number != nil {
-		return visitor.VisitNumber(a.Number)
+	if a.NumberVellumValue != nil {
+		return visitor.VisitNumberVellumValue(a.NumberVellumValue)
 	}
-	if a.Json != nil {
-		return visitor.VisitJson(a.Json)
+	if a.JsonVellumValue != nil {
+		return visitor.VisitJsonVellumValue(a.JsonVellumValue)
 	}
-	if a.Image != nil {
-		return visitor.VisitImage(a.Image)
+	if a.ImageVellumValue != nil {
+		return visitor.VisitImageVellumValue(a.ImageVellumValue)
 	}
-	if a.FunctionCall != nil {
-		return visitor.VisitFunctionCall(a.FunctionCall)
+	if a.FunctionCallVellumValue != nil {
+		return visitor.VisitFunctionCallVellumValue(a.FunctionCallVellumValue)
 	}
-	if a.Error != nil {
-		return visitor.VisitError(a.Error)
+	if a.ErrorVellumValue != nil {
+		return visitor.VisitErrorVellumValue(a.ErrorVellumValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", a)
+	return fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayVellumValueItemRequest struct {
-	Type         string
-	String       *StringVellumValueRequest
-	Number       *NumberVellumValueRequest
-	Json         *JsonVellumValueRequest
-	Image        *ImageVellumValueRequest
-	FunctionCall *FunctionCallVellumValueRequest
-	Error        *ErrorVellumValueRequest
+	StringVellumValueRequest       *StringVellumValueRequest
+	NumberVellumValueRequest       *NumberVellumValueRequest
+	JsonVellumValueRequest         *JsonVellumValueRequest
+	ImageVellumValueRequest        *ImageVellumValueRequest
+	FunctionCallVellumValueRequest *FunctionCallVellumValueRequest
+	ErrorVellumValueRequest        *ErrorVellumValueRequest
 }
 
 func (a *ArrayVellumValueItemRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringVellumValueRequest := new(StringVellumValueRequest)
+	if err := json.Unmarshal(data, &valueStringVellumValueRequest); err == nil {
+		a.StringVellumValueRequest = valueStringVellumValueRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNumberVellumValueRequest := new(NumberVellumValueRequest)
+	if err := json.Unmarshal(data, &valueNumberVellumValueRequest); err == nil {
+		a.NumberVellumValueRequest = valueNumberVellumValueRequest
+		return nil
 	}
-	a.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.String = value
-	case "NUMBER":
-		value := new(NumberVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Number = value
-	case "JSON":
-		value := new(JsonVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Json = value
-	case "IMAGE":
-		value := new(ImageVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Image = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.FunctionCall = value
-	case "ERROR":
-		value := new(ErrorVellumValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		a.Error = value
+	valueJsonVellumValueRequest := new(JsonVellumValueRequest)
+	if err := json.Unmarshal(data, &valueJsonVellumValueRequest); err == nil {
+		a.JsonVellumValueRequest = valueJsonVellumValueRequest
+		return nil
 	}
-	return nil
+	valueImageVellumValueRequest := new(ImageVellumValueRequest)
+	if err := json.Unmarshal(data, &valueImageVellumValueRequest); err == nil {
+		a.ImageVellumValueRequest = valueImageVellumValueRequest
+		return nil
+	}
+	valueFunctionCallVellumValueRequest := new(FunctionCallVellumValueRequest)
+	if err := json.Unmarshal(data, &valueFunctionCallVellumValueRequest); err == nil {
+		a.FunctionCallVellumValueRequest = valueFunctionCallVellumValueRequest
+		return nil
+	}
+	valueErrorVellumValueRequest := new(ErrorVellumValueRequest)
+	if err := json.Unmarshal(data, &valueErrorVellumValueRequest); err == nil {
+		a.ErrorVellumValueRequest = valueErrorVellumValueRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, a)
 }
 
 func (a ArrayVellumValueItemRequest) MarshalJSON() ([]byte, error) {
-	if a.String != nil {
-		return core.MarshalJSONWithExtraProperty(a.String, "type", "STRING")
+	if a.StringVellumValueRequest != nil {
+		return json.Marshal(a.StringVellumValueRequest)
 	}
-	if a.Number != nil {
-		return core.MarshalJSONWithExtraProperty(a.Number, "type", "NUMBER")
+	if a.NumberVellumValueRequest != nil {
+		return json.Marshal(a.NumberVellumValueRequest)
 	}
-	if a.Json != nil {
-		return core.MarshalJSONWithExtraProperty(a.Json, "type", "JSON")
+	if a.JsonVellumValueRequest != nil {
+		return json.Marshal(a.JsonVellumValueRequest)
 	}
-	if a.Image != nil {
-		return core.MarshalJSONWithExtraProperty(a.Image, "type", "IMAGE")
+	if a.ImageVellumValueRequest != nil {
+		return json.Marshal(a.ImageVellumValueRequest)
 	}
-	if a.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(a.FunctionCall, "type", "FUNCTION_CALL")
+	if a.FunctionCallVellumValueRequest != nil {
+		return json.Marshal(a.FunctionCallVellumValueRequest)
 	}
-	if a.Error != nil {
-		return core.MarshalJSONWithExtraProperty(a.Error, "type", "ERROR")
+	if a.ErrorVellumValueRequest != nil {
+		return json.Marshal(a.ErrorVellumValueRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", a)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 type ArrayVellumValueItemRequestVisitor interface {
-	VisitString(*StringVellumValueRequest) error
-	VisitNumber(*NumberVellumValueRequest) error
-	VisitJson(*JsonVellumValueRequest) error
-	VisitImage(*ImageVellumValueRequest) error
-	VisitFunctionCall(*FunctionCallVellumValueRequest) error
-	VisitError(*ErrorVellumValueRequest) error
+	VisitStringVellumValueRequest(*StringVellumValueRequest) error
+	VisitNumberVellumValueRequest(*NumberVellumValueRequest) error
+	VisitJsonVellumValueRequest(*JsonVellumValueRequest) error
+	VisitImageVellumValueRequest(*ImageVellumValueRequest) error
+	VisitFunctionCallVellumValueRequest(*FunctionCallVellumValueRequest) error
+	VisitErrorVellumValueRequest(*ErrorVellumValueRequest) error
 }
 
 func (a *ArrayVellumValueItemRequest) Accept(visitor ArrayVellumValueItemRequestVisitor) error {
-	if a.String != nil {
-		return visitor.VisitString(a.String)
+	if a.StringVellumValueRequest != nil {
+		return visitor.VisitStringVellumValueRequest(a.StringVellumValueRequest)
 	}
-	if a.Number != nil {
-		return visitor.VisitNumber(a.Number)
+	if a.NumberVellumValueRequest != nil {
+		return visitor.VisitNumberVellumValueRequest(a.NumberVellumValueRequest)
 	}
-	if a.Json != nil {
-		return visitor.VisitJson(a.Json)
+	if a.JsonVellumValueRequest != nil {
+		return visitor.VisitJsonVellumValueRequest(a.JsonVellumValueRequest)
 	}
-	if a.Image != nil {
-		return visitor.VisitImage(a.Image)
+	if a.ImageVellumValueRequest != nil {
+		return visitor.VisitImageVellumValueRequest(a.ImageVellumValueRequest)
 	}
-	if a.FunctionCall != nil {
-		return visitor.VisitFunctionCall(a.FunctionCall)
+	if a.FunctionCallVellumValueRequest != nil {
+		return visitor.VisitFunctionCallVellumValueRequest(a.FunctionCallVellumValueRequest)
 	}
-	if a.Error != nil {
-		return visitor.VisitError(a.Error)
+	if a.ErrorVellumValueRequest != nil {
+		return visitor.VisitErrorVellumValueRequest(a.ErrorVellumValueRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", a)
+	return fmt.Errorf("type %T does not include a non-empty union type", a)
 }
 
 // Basic vectorizer for intfloat/multilingual-e5-large.
 type BasicVectorizerIntfloatMultilingualE5Large struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -797,15 +802,28 @@ func (b *BasicVectorizerIntfloatMultilingualE5Large) GetExtraProperties() map[st
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerIntfloatMultilingualE5Large) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerIntfloatMultilingualE5Large) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerIntfloatMultilingualE5Large
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerIntfloatMultilingualE5Large
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerIntfloatMultilingualE5Large(value)
+	*b = BasicVectorizerIntfloatMultilingualE5Large(unmarshaler.embed)
+	if unmarshaler.ModelName != "intfloat/multilingual-e5-large" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "intfloat/multilingual-e5-large", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -813,6 +831,18 @@ func (b *BasicVectorizerIntfloatMultilingualE5Large) UnmarshalJSON(data []byte) 
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerIntfloatMultilingualE5Large) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerIntfloatMultilingualE5Large
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "intfloat/multilingual-e5-large",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerIntfloatMultilingualE5Large) String() string {
@@ -829,7 +859,8 @@ func (b *BasicVectorizerIntfloatMultilingualE5Large) String() string {
 
 // Basic vectorizer for intfloat/multilingual-e5-large.
 type BasicVectorizerIntfloatMultilingualE5LargeRequest struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -839,15 +870,28 @@ func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) GetExtraProperties()
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerIntfloatMultilingualE5LargeRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerIntfloatMultilingualE5LargeRequest
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerIntfloatMultilingualE5LargeRequest(value)
+	*b = BasicVectorizerIntfloatMultilingualE5LargeRequest(unmarshaler.embed)
+	if unmarshaler.ModelName != "intfloat/multilingual-e5-large" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "intfloat/multilingual-e5-large", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -855,6 +899,18 @@ func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) UnmarshalJSON(data [
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerIntfloatMultilingualE5LargeRequest
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "intfloat/multilingual-e5-large",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) String() string {
@@ -871,7 +927,8 @@ func (b *BasicVectorizerIntfloatMultilingualE5LargeRequest) String() string {
 
 // Basic vectorizer for sentence-transformers/multi-qa-mpnet-base-cos-v1.
 type BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -881,15 +938,28 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) GetExtraPrope
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1(value)
+	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1(unmarshaler.embed)
+	if unmarshaler.ModelName != "sentence-transformers/multi-qa-mpnet-base-cos-v1" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "sentence-transformers/multi-qa-mpnet-base-cos-v1", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -897,6 +967,18 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) UnmarshalJSON
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "sentence-transformers/multi-qa-mpnet-base-cos-v1",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) String() string {
@@ -913,7 +995,8 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) String() stri
 
 // Basic vectorizer for sentence-transformers/multi-qa-mpnet-base-cos-v1.
 type BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -923,15 +1006,28 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) GetExt
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request(value)
+	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request(unmarshaler.embed)
+	if unmarshaler.ModelName != "sentence-transformers/multi-qa-mpnet-base-cos-v1" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "sentence-transformers/multi-qa-mpnet-base-cos-v1", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -939,6 +1035,18 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) Unmars
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "sentence-transformers/multi-qa-mpnet-base-cos-v1",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) String() string {
@@ -955,7 +1063,8 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) String
 
 // Basic vectorizer for sentence-transformers/multi-qa-mpnet-base-dot-v1.
 type BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -965,15 +1074,28 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) GetExtraPrope
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1(value)
+	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1(unmarshaler.embed)
+	if unmarshaler.ModelName != "sentence-transformers/multi-qa-mpnet-base-dot-v1" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "sentence-transformers/multi-qa-mpnet-base-dot-v1", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -981,6 +1103,18 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) UnmarshalJSON
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "sentence-transformers/multi-qa-mpnet-base-dot-v1",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) String() string {
@@ -997,7 +1131,8 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) String() stri
 
 // Basic vectorizer for sentence-transformers/multi-qa-mpnet-base-dot-v1.
 type BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request struct {
-	Config map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty" url:"config,omitempty"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1007,15 +1142,28 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) GetExt
 	return b.extraProperties
 }
 
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) ModelName() string {
+	return b.modelName
+}
+
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) UnmarshalJSON(data []byte) error {
-	type unmarshaler BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*b),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request(value)
+	*b = BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request(unmarshaler.embed)
+	if unmarshaler.ModelName != "sentence-transformers/multi-qa-mpnet-base-dot-v1" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", b, "sentence-transformers/multi-qa-mpnet-base-dot-v1", unmarshaler.ModelName)
+	}
+	b.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *b)
+	extraProperties, err := core.ExtractExtraProperties(data, *b, "model_name")
 	if err != nil {
 		return err
 	}
@@ -1023,6 +1171,18 @@ func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) Unmars
 
 	b._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) MarshalJSON() ([]byte, error) {
+	type embed BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*b),
+		ModelName: "sentence-transformers/multi-qa-mpnet-base-dot-v1",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (b *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) String() string {
@@ -1042,6 +1202,7 @@ type ChatHistoryInputRequest struct {
 	// The variable's name, as defined in the deployment.
 	Name  string                `json:"name" url:"name"`
 	Value []*ChatMessageRequest `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1051,15 +1212,28 @@ func (c *ChatHistoryInputRequest) GetExtraProperties() map[string]interface{} {
 	return c.extraProperties
 }
 
+func (c *ChatHistoryInputRequest) Type() string {
+	return c.type_
+}
+
 func (c *ChatHistoryInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ChatHistoryInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ChatHistoryInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = ChatHistoryInputRequest(value)
+	*c = ChatHistoryInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1067,6 +1241,18 @@ func (c *ChatHistoryInputRequest) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *ChatHistoryInputRequest) MarshalJSON() ([]byte, error) {
+	type embed ChatHistoryInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *ChatHistoryInputRequest) String() string {
@@ -1127,171 +1313,143 @@ func (c *ChatMessage) String() string {
 }
 
 type ChatMessageContent struct {
-	Type         string
-	String       *StringChatMessageContent
-	FunctionCall *FunctionCallChatMessageContent
-	Array        *ArrayChatMessageContent
-	Image        *ImageChatMessageContent
+	StringChatMessageContent       *StringChatMessageContent
+	FunctionCallChatMessageContent *FunctionCallChatMessageContent
+	ArrayChatMessageContent        *ArrayChatMessageContent
+	ImageChatMessageContent        *ImageChatMessageContent
 }
 
 func (c *ChatMessageContent) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringChatMessageContent := new(StringChatMessageContent)
+	if err := json.Unmarshal(data, &valueStringChatMessageContent); err == nil {
+		c.StringChatMessageContent = valueStringChatMessageContent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueFunctionCallChatMessageContent := new(FunctionCallChatMessageContent)
+	if err := json.Unmarshal(data, &valueFunctionCallChatMessageContent); err == nil {
+		c.FunctionCallChatMessageContent = valueFunctionCallChatMessageContent
+		return nil
 	}
-	c.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.String = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.FunctionCall = value
-	case "ARRAY":
-		value := new(ArrayChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Array = value
-	case "IMAGE":
-		value := new(ImageChatMessageContent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Image = value
+	valueArrayChatMessageContent := new(ArrayChatMessageContent)
+	if err := json.Unmarshal(data, &valueArrayChatMessageContent); err == nil {
+		c.ArrayChatMessageContent = valueArrayChatMessageContent
+		return nil
 	}
-	return nil
+	valueImageChatMessageContent := new(ImageChatMessageContent)
+	if err := json.Unmarshal(data, &valueImageChatMessageContent); err == nil {
+		c.ImageChatMessageContent = valueImageChatMessageContent
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, c)
 }
 
 func (c ChatMessageContent) MarshalJSON() ([]byte, error) {
-	if c.String != nil {
-		return core.MarshalJSONWithExtraProperty(c.String, "type", "STRING")
+	if c.StringChatMessageContent != nil {
+		return json.Marshal(c.StringChatMessageContent)
 	}
-	if c.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(c.FunctionCall, "type", "FUNCTION_CALL")
+	if c.FunctionCallChatMessageContent != nil {
+		return json.Marshal(c.FunctionCallChatMessageContent)
 	}
-	if c.Array != nil {
-		return core.MarshalJSONWithExtraProperty(c.Array, "type", "ARRAY")
+	if c.ArrayChatMessageContent != nil {
+		return json.Marshal(c.ArrayChatMessageContent)
 	}
-	if c.Image != nil {
-		return core.MarshalJSONWithExtraProperty(c.Image, "type", "IMAGE")
+	if c.ImageChatMessageContent != nil {
+		return json.Marshal(c.ImageChatMessageContent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", c)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type ChatMessageContentVisitor interface {
-	VisitString(*StringChatMessageContent) error
-	VisitFunctionCall(*FunctionCallChatMessageContent) error
-	VisitArray(*ArrayChatMessageContent) error
-	VisitImage(*ImageChatMessageContent) error
+	VisitStringChatMessageContent(*StringChatMessageContent) error
+	VisitFunctionCallChatMessageContent(*FunctionCallChatMessageContent) error
+	VisitArrayChatMessageContent(*ArrayChatMessageContent) error
+	VisitImageChatMessageContent(*ImageChatMessageContent) error
 }
 
 func (c *ChatMessageContent) Accept(visitor ChatMessageContentVisitor) error {
-	if c.String != nil {
-		return visitor.VisitString(c.String)
+	if c.StringChatMessageContent != nil {
+		return visitor.VisitStringChatMessageContent(c.StringChatMessageContent)
 	}
-	if c.FunctionCall != nil {
-		return visitor.VisitFunctionCall(c.FunctionCall)
+	if c.FunctionCallChatMessageContent != nil {
+		return visitor.VisitFunctionCallChatMessageContent(c.FunctionCallChatMessageContent)
 	}
-	if c.Array != nil {
-		return visitor.VisitArray(c.Array)
+	if c.ArrayChatMessageContent != nil {
+		return visitor.VisitArrayChatMessageContent(c.ArrayChatMessageContent)
 	}
-	if c.Image != nil {
-		return visitor.VisitImage(c.Image)
+	if c.ImageChatMessageContent != nil {
+		return visitor.VisitImageChatMessageContent(c.ImageChatMessageContent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", c)
+	return fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type ChatMessageContentRequest struct {
-	Type         string
-	String       *StringChatMessageContentRequest
-	FunctionCall *FunctionCallChatMessageContentRequest
-	Array        *ArrayChatMessageContentRequest
-	Image        *ImageChatMessageContentRequest
+	StringChatMessageContentRequest       *StringChatMessageContentRequest
+	FunctionCallChatMessageContentRequest *FunctionCallChatMessageContentRequest
+	ArrayChatMessageContentRequest        *ArrayChatMessageContentRequest
+	ImageChatMessageContentRequest        *ImageChatMessageContentRequest
 }
 
 func (c *ChatMessageContentRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringChatMessageContentRequest := new(StringChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueStringChatMessageContentRequest); err == nil {
+		c.StringChatMessageContentRequest = valueStringChatMessageContentRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueFunctionCallChatMessageContentRequest := new(FunctionCallChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueFunctionCallChatMessageContentRequest); err == nil {
+		c.FunctionCallChatMessageContentRequest = valueFunctionCallChatMessageContentRequest
+		return nil
 	}
-	c.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.String = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.FunctionCall = value
-	case "ARRAY":
-		value := new(ArrayChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Array = value
-	case "IMAGE":
-		value := new(ImageChatMessageContentRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Image = value
+	valueArrayChatMessageContentRequest := new(ArrayChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueArrayChatMessageContentRequest); err == nil {
+		c.ArrayChatMessageContentRequest = valueArrayChatMessageContentRequest
+		return nil
 	}
-	return nil
+	valueImageChatMessageContentRequest := new(ImageChatMessageContentRequest)
+	if err := json.Unmarshal(data, &valueImageChatMessageContentRequest); err == nil {
+		c.ImageChatMessageContentRequest = valueImageChatMessageContentRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, c)
 }
 
 func (c ChatMessageContentRequest) MarshalJSON() ([]byte, error) {
-	if c.String != nil {
-		return core.MarshalJSONWithExtraProperty(c.String, "type", "STRING")
+	if c.StringChatMessageContentRequest != nil {
+		return json.Marshal(c.StringChatMessageContentRequest)
 	}
-	if c.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(c.FunctionCall, "type", "FUNCTION_CALL")
+	if c.FunctionCallChatMessageContentRequest != nil {
+		return json.Marshal(c.FunctionCallChatMessageContentRequest)
 	}
-	if c.Array != nil {
-		return core.MarshalJSONWithExtraProperty(c.Array, "type", "ARRAY")
+	if c.ArrayChatMessageContentRequest != nil {
+		return json.Marshal(c.ArrayChatMessageContentRequest)
 	}
-	if c.Image != nil {
-		return core.MarshalJSONWithExtraProperty(c.Image, "type", "IMAGE")
+	if c.ImageChatMessageContentRequest != nil {
+		return json.Marshal(c.ImageChatMessageContentRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", c)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type ChatMessageContentRequestVisitor interface {
-	VisitString(*StringChatMessageContentRequest) error
-	VisitFunctionCall(*FunctionCallChatMessageContentRequest) error
-	VisitArray(*ArrayChatMessageContentRequest) error
-	VisitImage(*ImageChatMessageContentRequest) error
+	VisitStringChatMessageContentRequest(*StringChatMessageContentRequest) error
+	VisitFunctionCallChatMessageContentRequest(*FunctionCallChatMessageContentRequest) error
+	VisitArrayChatMessageContentRequest(*ArrayChatMessageContentRequest) error
+	VisitImageChatMessageContentRequest(*ImageChatMessageContentRequest) error
 }
 
 func (c *ChatMessageContentRequest) Accept(visitor ChatMessageContentRequestVisitor) error {
-	if c.String != nil {
-		return visitor.VisitString(c.String)
+	if c.StringChatMessageContentRequest != nil {
+		return visitor.VisitStringChatMessageContentRequest(c.StringChatMessageContentRequest)
 	}
-	if c.FunctionCall != nil {
-		return visitor.VisitFunctionCall(c.FunctionCall)
+	if c.FunctionCallChatMessageContentRequest != nil {
+		return visitor.VisitFunctionCallChatMessageContentRequest(c.FunctionCallChatMessageContentRequest)
 	}
-	if c.Array != nil {
-		return visitor.VisitArray(c.Array)
+	if c.ArrayChatMessageContentRequest != nil {
+		return visitor.VisitArrayChatMessageContentRequest(c.ArrayChatMessageContentRequest)
 	}
-	if c.Image != nil {
-		return visitor.VisitImage(c.Image)
+	if c.ImageChatMessageContentRequest != nil {
+		return visitor.VisitImageChatMessageContentRequest(c.ImageChatMessageContentRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", c)
+	return fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type ChatMessageRequest struct {
@@ -1374,6 +1532,7 @@ func (c ChatMessageRole) Ptr() *ChatMessageRole {
 type CodeExecutionNodeArrayResult struct {
 	Id    string                    `json:"id" url:"id"`
 	Value []*ArrayVariableValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1383,15 +1542,28 @@ func (c *CodeExecutionNodeArrayResult) GetExtraProperties() map[string]interface
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeArrayResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeArrayResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeArrayResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeArrayResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeArrayResult(value)
+	*c = CodeExecutionNodeArrayResult(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "ARRAY", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1399,6 +1571,18 @@ func (c *CodeExecutionNodeArrayResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeArrayResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeArrayResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeArrayResult) String() string {
@@ -1416,6 +1600,7 @@ func (c *CodeExecutionNodeArrayResult) String() string {
 type CodeExecutionNodeChatHistoryResult struct {
 	Id    string         `json:"id" url:"id"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1425,15 +1610,28 @@ func (c *CodeExecutionNodeChatHistoryResult) GetExtraProperties() map[string]int
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeChatHistoryResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeChatHistoryResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeChatHistoryResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeChatHistoryResult(value)
+	*c = CodeExecutionNodeChatHistoryResult(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1441,6 +1639,18 @@ func (c *CodeExecutionNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeChatHistoryResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeChatHistoryResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeChatHistoryResult) String() string {
@@ -1458,6 +1668,7 @@ func (c *CodeExecutionNodeChatHistoryResult) String() string {
 type CodeExecutionNodeErrorResult struct {
 	Id    string       `json:"id" url:"id"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1467,15 +1678,28 @@ func (c *CodeExecutionNodeErrorResult) GetExtraProperties() map[string]interface
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeErrorResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeErrorResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeErrorResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeErrorResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeErrorResult(value)
+	*c = CodeExecutionNodeErrorResult(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "ERROR", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1483,6 +1707,18 @@ func (c *CodeExecutionNodeErrorResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeErrorResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeErrorResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeErrorResult) String() string {
@@ -1500,6 +1736,7 @@ func (c *CodeExecutionNodeErrorResult) String() string {
 type CodeExecutionNodeFunctionCallResult struct {
 	Id    string        `json:"id" url:"id"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1509,15 +1746,28 @@ func (c *CodeExecutionNodeFunctionCallResult) GetExtraProperties() map[string]in
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeFunctionCallResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeFunctionCallResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeFunctionCallResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeFunctionCallResult(value)
+	*c = CodeExecutionNodeFunctionCallResult(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1525,6 +1775,18 @@ func (c *CodeExecutionNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeFunctionCallResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeFunctionCallResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeFunctionCallResult) String() string {
@@ -1542,6 +1804,7 @@ func (c *CodeExecutionNodeFunctionCallResult) String() string {
 type CodeExecutionNodeJsonResult struct {
 	Id    string      `json:"id" url:"id"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1551,15 +1814,28 @@ func (c *CodeExecutionNodeJsonResult) GetExtraProperties() map[string]interface{
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeJsonResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeJsonResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeJsonResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeJsonResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeJsonResult(value)
+	*c = CodeExecutionNodeJsonResult(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "JSON", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1567,6 +1843,18 @@ func (c *CodeExecutionNodeJsonResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeJsonResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeJsonResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeJsonResult) String() string {
@@ -1584,6 +1872,7 @@ func (c *CodeExecutionNodeJsonResult) String() string {
 type CodeExecutionNodeNumberResult struct {
 	Id    string   `json:"id" url:"id"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1593,15 +1882,28 @@ func (c *CodeExecutionNodeNumberResult) GetExtraProperties() map[string]interfac
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeNumberResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeNumberResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeNumberResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeNumberResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeNumberResult(value)
+	*c = CodeExecutionNodeNumberResult(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "NUMBER", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1609,6 +1911,18 @@ func (c *CodeExecutionNodeNumberResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeNumberResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeNumberResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeNumberResult) String() string {
@@ -1625,7 +1939,8 @@ func (c *CodeExecutionNodeNumberResult) String() string {
 
 // A Node Result Event emitted from a Code Execution Node.
 type CodeExecutionNodeResult struct {
-	Data *CodeExecutionNodeResultData `json:"data" url:"data"`
+	Data  *CodeExecutionNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1635,15 +1950,28 @@ func (c *CodeExecutionNodeResult) GetExtraProperties() map[string]interface{} {
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeResult(value)
+	*c = CodeExecutionNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "CODE_EXECUTION" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "CODE_EXECUTION", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1651,6 +1979,18 @@ func (c *CodeExecutionNodeResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "CODE_EXECUTION",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeResult) String() string {
@@ -1708,148 +2048,131 @@ func (c *CodeExecutionNodeResultData) String() string {
 }
 
 type CodeExecutionNodeResultOutput struct {
-	Type          string
-	String        *CodeExecutionNodeStringResult
-	Number        *CodeExecutionNodeNumberResult
-	Json          *CodeExecutionNodeJsonResult
-	ChatHistory   *CodeExecutionNodeChatHistoryResult
-	SearchResults *CodeExecutionNodeSearchResultsResult
-	Error         *CodeExecutionNodeErrorResult
-	Array         *CodeExecutionNodeArrayResult
-	FunctionCall  *CodeExecutionNodeFunctionCallResult
+	CodeExecutionNodeStringResult        *CodeExecutionNodeStringResult
+	CodeExecutionNodeNumberResult        *CodeExecutionNodeNumberResult
+	CodeExecutionNodeJsonResult          *CodeExecutionNodeJsonResult
+	CodeExecutionNodeChatHistoryResult   *CodeExecutionNodeChatHistoryResult
+	CodeExecutionNodeSearchResultsResult *CodeExecutionNodeSearchResultsResult
+	CodeExecutionNodeErrorResult         *CodeExecutionNodeErrorResult
+	CodeExecutionNodeArrayResult         *CodeExecutionNodeArrayResult
+	CodeExecutionNodeFunctionCallResult  *CodeExecutionNodeFunctionCallResult
 }
 
 func (c *CodeExecutionNodeResultOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueCodeExecutionNodeStringResult := new(CodeExecutionNodeStringResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeStringResult); err == nil {
+		c.CodeExecutionNodeStringResult = valueCodeExecutionNodeStringResult
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueCodeExecutionNodeNumberResult := new(CodeExecutionNodeNumberResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeNumberResult); err == nil {
+		c.CodeExecutionNodeNumberResult = valueCodeExecutionNodeNumberResult
+		return nil
 	}
-	c.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(CodeExecutionNodeStringResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.String = value
-	case "NUMBER":
-		value := new(CodeExecutionNodeNumberResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Number = value
-	case "JSON":
-		value := new(CodeExecutionNodeJsonResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Json = value
-	case "CHAT_HISTORY":
-		value := new(CodeExecutionNodeChatHistoryResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(CodeExecutionNodeSearchResultsResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.SearchResults = value
-	case "ERROR":
-		value := new(CodeExecutionNodeErrorResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Error = value
-	case "ARRAY":
-		value := new(CodeExecutionNodeArrayResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.Array = value
-	case "FUNCTION_CALL":
-		value := new(CodeExecutionNodeFunctionCallResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		c.FunctionCall = value
+	valueCodeExecutionNodeJsonResult := new(CodeExecutionNodeJsonResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeJsonResult); err == nil {
+		c.CodeExecutionNodeJsonResult = valueCodeExecutionNodeJsonResult
+		return nil
 	}
-	return nil
+	valueCodeExecutionNodeChatHistoryResult := new(CodeExecutionNodeChatHistoryResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeChatHistoryResult); err == nil {
+		c.CodeExecutionNodeChatHistoryResult = valueCodeExecutionNodeChatHistoryResult
+		return nil
+	}
+	valueCodeExecutionNodeSearchResultsResult := new(CodeExecutionNodeSearchResultsResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeSearchResultsResult); err == nil {
+		c.CodeExecutionNodeSearchResultsResult = valueCodeExecutionNodeSearchResultsResult
+		return nil
+	}
+	valueCodeExecutionNodeErrorResult := new(CodeExecutionNodeErrorResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeErrorResult); err == nil {
+		c.CodeExecutionNodeErrorResult = valueCodeExecutionNodeErrorResult
+		return nil
+	}
+	valueCodeExecutionNodeArrayResult := new(CodeExecutionNodeArrayResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeArrayResult); err == nil {
+		c.CodeExecutionNodeArrayResult = valueCodeExecutionNodeArrayResult
+		return nil
+	}
+	valueCodeExecutionNodeFunctionCallResult := new(CodeExecutionNodeFunctionCallResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeFunctionCallResult); err == nil {
+		c.CodeExecutionNodeFunctionCallResult = valueCodeExecutionNodeFunctionCallResult
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, c)
 }
 
 func (c CodeExecutionNodeResultOutput) MarshalJSON() ([]byte, error) {
-	if c.String != nil {
-		return core.MarshalJSONWithExtraProperty(c.String, "type", "STRING")
+	if c.CodeExecutionNodeStringResult != nil {
+		return json.Marshal(c.CodeExecutionNodeStringResult)
 	}
-	if c.Number != nil {
-		return core.MarshalJSONWithExtraProperty(c.Number, "type", "NUMBER")
+	if c.CodeExecutionNodeNumberResult != nil {
+		return json.Marshal(c.CodeExecutionNodeNumberResult)
 	}
-	if c.Json != nil {
-		return core.MarshalJSONWithExtraProperty(c.Json, "type", "JSON")
+	if c.CodeExecutionNodeJsonResult != nil {
+		return json.Marshal(c.CodeExecutionNodeJsonResult)
 	}
-	if c.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(c.ChatHistory, "type", "CHAT_HISTORY")
+	if c.CodeExecutionNodeChatHistoryResult != nil {
+		return json.Marshal(c.CodeExecutionNodeChatHistoryResult)
 	}
-	if c.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(c.SearchResults, "type", "SEARCH_RESULTS")
+	if c.CodeExecutionNodeSearchResultsResult != nil {
+		return json.Marshal(c.CodeExecutionNodeSearchResultsResult)
 	}
-	if c.Error != nil {
-		return core.MarshalJSONWithExtraProperty(c.Error, "type", "ERROR")
+	if c.CodeExecutionNodeErrorResult != nil {
+		return json.Marshal(c.CodeExecutionNodeErrorResult)
 	}
-	if c.Array != nil {
-		return core.MarshalJSONWithExtraProperty(c.Array, "type", "ARRAY")
+	if c.CodeExecutionNodeArrayResult != nil {
+		return json.Marshal(c.CodeExecutionNodeArrayResult)
 	}
-	if c.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(c.FunctionCall, "type", "FUNCTION_CALL")
+	if c.CodeExecutionNodeFunctionCallResult != nil {
+		return json.Marshal(c.CodeExecutionNodeFunctionCallResult)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", c)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type CodeExecutionNodeResultOutputVisitor interface {
-	VisitString(*CodeExecutionNodeStringResult) error
-	VisitNumber(*CodeExecutionNodeNumberResult) error
-	VisitJson(*CodeExecutionNodeJsonResult) error
-	VisitChatHistory(*CodeExecutionNodeChatHistoryResult) error
-	VisitSearchResults(*CodeExecutionNodeSearchResultsResult) error
-	VisitError(*CodeExecutionNodeErrorResult) error
-	VisitArray(*CodeExecutionNodeArrayResult) error
-	VisitFunctionCall(*CodeExecutionNodeFunctionCallResult) error
+	VisitCodeExecutionNodeStringResult(*CodeExecutionNodeStringResult) error
+	VisitCodeExecutionNodeNumberResult(*CodeExecutionNodeNumberResult) error
+	VisitCodeExecutionNodeJsonResult(*CodeExecutionNodeJsonResult) error
+	VisitCodeExecutionNodeChatHistoryResult(*CodeExecutionNodeChatHistoryResult) error
+	VisitCodeExecutionNodeSearchResultsResult(*CodeExecutionNodeSearchResultsResult) error
+	VisitCodeExecutionNodeErrorResult(*CodeExecutionNodeErrorResult) error
+	VisitCodeExecutionNodeArrayResult(*CodeExecutionNodeArrayResult) error
+	VisitCodeExecutionNodeFunctionCallResult(*CodeExecutionNodeFunctionCallResult) error
 }
 
 func (c *CodeExecutionNodeResultOutput) Accept(visitor CodeExecutionNodeResultOutputVisitor) error {
-	if c.String != nil {
-		return visitor.VisitString(c.String)
+	if c.CodeExecutionNodeStringResult != nil {
+		return visitor.VisitCodeExecutionNodeStringResult(c.CodeExecutionNodeStringResult)
 	}
-	if c.Number != nil {
-		return visitor.VisitNumber(c.Number)
+	if c.CodeExecutionNodeNumberResult != nil {
+		return visitor.VisitCodeExecutionNodeNumberResult(c.CodeExecutionNodeNumberResult)
 	}
-	if c.Json != nil {
-		return visitor.VisitJson(c.Json)
+	if c.CodeExecutionNodeJsonResult != nil {
+		return visitor.VisitCodeExecutionNodeJsonResult(c.CodeExecutionNodeJsonResult)
 	}
-	if c.ChatHistory != nil {
-		return visitor.VisitChatHistory(c.ChatHistory)
+	if c.CodeExecutionNodeChatHistoryResult != nil {
+		return visitor.VisitCodeExecutionNodeChatHistoryResult(c.CodeExecutionNodeChatHistoryResult)
 	}
-	if c.SearchResults != nil {
-		return visitor.VisitSearchResults(c.SearchResults)
+	if c.CodeExecutionNodeSearchResultsResult != nil {
+		return visitor.VisitCodeExecutionNodeSearchResultsResult(c.CodeExecutionNodeSearchResultsResult)
 	}
-	if c.Error != nil {
-		return visitor.VisitError(c.Error)
+	if c.CodeExecutionNodeErrorResult != nil {
+		return visitor.VisitCodeExecutionNodeErrorResult(c.CodeExecutionNodeErrorResult)
 	}
-	if c.Array != nil {
-		return visitor.VisitArray(c.Array)
+	if c.CodeExecutionNodeArrayResult != nil {
+		return visitor.VisitCodeExecutionNodeArrayResult(c.CodeExecutionNodeArrayResult)
 	}
-	if c.FunctionCall != nil {
-		return visitor.VisitFunctionCall(c.FunctionCall)
+	if c.CodeExecutionNodeFunctionCallResult != nil {
+		return visitor.VisitCodeExecutionNodeFunctionCallResult(c.CodeExecutionNodeFunctionCallResult)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", c)
+	return fmt.Errorf("type %T does not include a non-empty union type", c)
 }
 
 type CodeExecutionNodeSearchResultsResult struct {
 	Id    string          `json:"id" url:"id"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1859,15 +2182,28 @@ func (c *CodeExecutionNodeSearchResultsResult) GetExtraProperties() map[string]i
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeSearchResultsResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeSearchResultsResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeSearchResultsResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeSearchResultsResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeSearchResultsResult(value)
+	*c = CodeExecutionNodeSearchResultsResult(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1875,6 +2211,18 @@ func (c *CodeExecutionNodeSearchResultsResult) UnmarshalJSON(data []byte) error 
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeSearchResultsResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeSearchResultsResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeSearchResultsResult) String() string {
@@ -1892,6 +2240,7 @@ func (c *CodeExecutionNodeSearchResultsResult) String() string {
 type CodeExecutionNodeStringResult struct {
 	Id    string  `json:"id" url:"id"`
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -1901,15 +2250,28 @@ func (c *CodeExecutionNodeStringResult) GetExtraProperties() map[string]interfac
 	return c.extraProperties
 }
 
+func (c *CodeExecutionNodeStringResult) Type() string {
+	return c.type_
+}
+
 func (c *CodeExecutionNodeStringResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler CodeExecutionNodeStringResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed CodeExecutionNodeStringResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = CodeExecutionNodeStringResult(value)
+	*c = CodeExecutionNodeStringResult(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "STRING", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -1917,6 +2279,18 @@ func (c *CodeExecutionNodeStringResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *CodeExecutionNodeStringResult) MarshalJSON() ([]byte, error) {
+	type embed CodeExecutionNodeStringResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *CodeExecutionNodeStringResult) String() string {
@@ -2021,9 +2395,14 @@ func (c *CompilePromptMeta) String() string {
 	return fmt.Sprintf("%#v", c)
 }
 
+type ComponentsSchemasPdfSearchResultMetaSource = *PdfSearchResultMetaSource
+
+type ComponentsSchemasPdfSearchResultMetaSourceRequest = *PdfSearchResultMetaSourceRequest
+
 // A Node Result Event emitted from a Conditional Node.
 type ConditionalNodeResult struct {
-	Data *ConditionalNodeResultData `json:"data" url:"data"`
+	Data  *ConditionalNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -2033,15 +2412,28 @@ func (c *ConditionalNodeResult) GetExtraProperties() map[string]interface{} {
 	return c.extraProperties
 }
 
+func (c *ConditionalNodeResult) Type() string {
+	return c.type_
+}
+
 func (c *ConditionalNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler ConditionalNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ConditionalNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*c = ConditionalNodeResult(value)
+	*c = ConditionalNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "CONDITIONAL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", c, "CONDITIONAL", unmarshaler.Type)
+	}
+	c.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *c)
+	extraProperties, err := core.ExtractExtraProperties(data, *c, "type")
 	if err != nil {
 		return err
 	}
@@ -2049,6 +2441,18 @@ func (c *ConditionalNodeResult) UnmarshalJSON(data []byte) error {
 
 	c._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (c *ConditionalNodeResult) MarshalJSON() ([]byte, error) {
+	type embed ConditionalNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*c),
+		Type:  "CONDITIONAL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (c *ConditionalNodeResult) String() string {
@@ -2488,143 +2892,117 @@ func (d *DocumentDocumentToDocumentIndex) String() string {
 }
 
 type DocumentIndexChunking struct {
-	ChunkerName                   string
-	ReductoChunker                *ReductoChunking
-	SentenceChunker               *SentenceChunking
-	TokenOverlappingWindowChunker *TokenOverlappingWindowChunking
+	ReductoChunking                *ReductoChunking
+	SentenceChunking               *SentenceChunking
+	TokenOverlappingWindowChunking *TokenOverlappingWindowChunking
 }
 
 func (d *DocumentIndexChunking) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		ChunkerName string `json:"chunker_name"`
+	valueReductoChunking := new(ReductoChunking)
+	if err := json.Unmarshal(data, &valueReductoChunking); err == nil {
+		d.ReductoChunking = valueReductoChunking
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueSentenceChunking := new(SentenceChunking)
+	if err := json.Unmarshal(data, &valueSentenceChunking); err == nil {
+		d.SentenceChunking = valueSentenceChunking
+		return nil
 	}
-	d.ChunkerName = unmarshaler.ChunkerName
-	switch unmarshaler.ChunkerName {
-	case "reducto-chunker":
-		value := new(ReductoChunking)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.ReductoChunker = value
-	case "sentence-chunker":
-		value := new(SentenceChunking)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.SentenceChunker = value
-	case "token-overlapping-window-chunker":
-		value := new(TokenOverlappingWindowChunking)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.TokenOverlappingWindowChunker = value
+	valueTokenOverlappingWindowChunking := new(TokenOverlappingWindowChunking)
+	if err := json.Unmarshal(data, &valueTokenOverlappingWindowChunking); err == nil {
+		d.TokenOverlappingWindowChunking = valueTokenOverlappingWindowChunking
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, d)
 }
 
 func (d DocumentIndexChunking) MarshalJSON() ([]byte, error) {
-	if d.ReductoChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.ReductoChunker, "chunker_name", "reducto-chunker")
+	if d.ReductoChunking != nil {
+		return json.Marshal(d.ReductoChunking)
 	}
-	if d.SentenceChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.SentenceChunker, "chunker_name", "sentence-chunker")
+	if d.SentenceChunking != nil {
+		return json.Marshal(d.SentenceChunking)
 	}
-	if d.TokenOverlappingWindowChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.TokenOverlappingWindowChunker, "chunker_name", "token-overlapping-window-chunker")
+	if d.TokenOverlappingWindowChunking != nil {
+		return json.Marshal(d.TokenOverlappingWindowChunking)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", d)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", d)
 }
 
 type DocumentIndexChunkingVisitor interface {
-	VisitReductoChunker(*ReductoChunking) error
-	VisitSentenceChunker(*SentenceChunking) error
-	VisitTokenOverlappingWindowChunker(*TokenOverlappingWindowChunking) error
+	VisitReductoChunking(*ReductoChunking) error
+	VisitSentenceChunking(*SentenceChunking) error
+	VisitTokenOverlappingWindowChunking(*TokenOverlappingWindowChunking) error
 }
 
 func (d *DocumentIndexChunking) Accept(visitor DocumentIndexChunkingVisitor) error {
-	if d.ReductoChunker != nil {
-		return visitor.VisitReductoChunker(d.ReductoChunker)
+	if d.ReductoChunking != nil {
+		return visitor.VisitReductoChunking(d.ReductoChunking)
 	}
-	if d.SentenceChunker != nil {
-		return visitor.VisitSentenceChunker(d.SentenceChunker)
+	if d.SentenceChunking != nil {
+		return visitor.VisitSentenceChunking(d.SentenceChunking)
 	}
-	if d.TokenOverlappingWindowChunker != nil {
-		return visitor.VisitTokenOverlappingWindowChunker(d.TokenOverlappingWindowChunker)
+	if d.TokenOverlappingWindowChunking != nil {
+		return visitor.VisitTokenOverlappingWindowChunking(d.TokenOverlappingWindowChunking)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", d)
+	return fmt.Errorf("type %T does not include a non-empty union type", d)
 }
 
 type DocumentIndexChunkingRequest struct {
-	ChunkerName                   string
-	ReductoChunker                *ReductoChunkingRequest
-	SentenceChunker               *SentenceChunkingRequest
-	TokenOverlappingWindowChunker *TokenOverlappingWindowChunkingRequest
+	ReductoChunkingRequest                *ReductoChunkingRequest
+	SentenceChunkingRequest               *SentenceChunkingRequest
+	TokenOverlappingWindowChunkingRequest *TokenOverlappingWindowChunkingRequest
 }
 
 func (d *DocumentIndexChunkingRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		ChunkerName string `json:"chunker_name"`
+	valueReductoChunkingRequest := new(ReductoChunkingRequest)
+	if err := json.Unmarshal(data, &valueReductoChunkingRequest); err == nil {
+		d.ReductoChunkingRequest = valueReductoChunkingRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueSentenceChunkingRequest := new(SentenceChunkingRequest)
+	if err := json.Unmarshal(data, &valueSentenceChunkingRequest); err == nil {
+		d.SentenceChunkingRequest = valueSentenceChunkingRequest
+		return nil
 	}
-	d.ChunkerName = unmarshaler.ChunkerName
-	switch unmarshaler.ChunkerName {
-	case "reducto-chunker":
-		value := new(ReductoChunkingRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.ReductoChunker = value
-	case "sentence-chunker":
-		value := new(SentenceChunkingRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.SentenceChunker = value
-	case "token-overlapping-window-chunker":
-		value := new(TokenOverlappingWindowChunkingRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		d.TokenOverlappingWindowChunker = value
+	valueTokenOverlappingWindowChunkingRequest := new(TokenOverlappingWindowChunkingRequest)
+	if err := json.Unmarshal(data, &valueTokenOverlappingWindowChunkingRequest); err == nil {
+		d.TokenOverlappingWindowChunkingRequest = valueTokenOverlappingWindowChunkingRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, d)
 }
 
 func (d DocumentIndexChunkingRequest) MarshalJSON() ([]byte, error) {
-	if d.ReductoChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.ReductoChunker, "chunker_name", "reducto-chunker")
+	if d.ReductoChunkingRequest != nil {
+		return json.Marshal(d.ReductoChunkingRequest)
 	}
-	if d.SentenceChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.SentenceChunker, "chunker_name", "sentence-chunker")
+	if d.SentenceChunkingRequest != nil {
+		return json.Marshal(d.SentenceChunkingRequest)
 	}
-	if d.TokenOverlappingWindowChunker != nil {
-		return core.MarshalJSONWithExtraProperty(d.TokenOverlappingWindowChunker, "chunker_name", "token-overlapping-window-chunker")
+	if d.TokenOverlappingWindowChunkingRequest != nil {
+		return json.Marshal(d.TokenOverlappingWindowChunkingRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", d)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", d)
 }
 
 type DocumentIndexChunkingRequestVisitor interface {
-	VisitReductoChunker(*ReductoChunkingRequest) error
-	VisitSentenceChunker(*SentenceChunkingRequest) error
-	VisitTokenOverlappingWindowChunker(*TokenOverlappingWindowChunkingRequest) error
+	VisitReductoChunkingRequest(*ReductoChunkingRequest) error
+	VisitSentenceChunkingRequest(*SentenceChunkingRequest) error
+	VisitTokenOverlappingWindowChunkingRequest(*TokenOverlappingWindowChunkingRequest) error
 }
 
 func (d *DocumentIndexChunkingRequest) Accept(visitor DocumentIndexChunkingRequestVisitor) error {
-	if d.ReductoChunker != nil {
-		return visitor.VisitReductoChunker(d.ReductoChunker)
+	if d.ReductoChunkingRequest != nil {
+		return visitor.VisitReductoChunkingRequest(d.ReductoChunkingRequest)
 	}
-	if d.SentenceChunker != nil {
-		return visitor.VisitSentenceChunker(d.SentenceChunker)
+	if d.SentenceChunkingRequest != nil {
+		return visitor.VisitSentenceChunkingRequest(d.SentenceChunkingRequest)
 	}
-	if d.TokenOverlappingWindowChunker != nil {
-		return visitor.VisitTokenOverlappingWindowChunker(d.TokenOverlappingWindowChunker)
+	if d.TokenOverlappingWindowChunkingRequest != nil {
+		return visitor.VisitTokenOverlappingWindowChunkingRequest(d.TokenOverlappingWindowChunkingRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", d)
+	return fmt.Errorf("type %T does not include a non-empty union type", d)
 }
 
 type DocumentIndexIndexingConfig struct {
@@ -2984,6 +3362,7 @@ func (e EnvironmentEnum) Ptr() *EnvironmentEnum {
 
 type ErrorVariableValue struct {
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -2993,15 +3372,28 @@ func (e *ErrorVariableValue) GetExtraProperties() map[string]interface{} {
 	return e.extraProperties
 }
 
+func (e *ErrorVariableValue) Type() string {
+	return e.type_
+}
+
 func (e *ErrorVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ErrorVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ErrorVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ErrorVariableValue(value)
+	*e = ErrorVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "ERROR", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3009,6 +3401,18 @@ func (e *ErrorVariableValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ErrorVariableValue) MarshalJSON() ([]byte, error) {
+	type embed ErrorVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ErrorVariableValue) String() string {
@@ -3026,6 +3430,7 @@ func (e *ErrorVariableValue) String() string {
 // A value representing an Error.
 type ErrorVellumValue struct {
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3035,15 +3440,28 @@ func (e *ErrorVellumValue) GetExtraProperties() map[string]interface{} {
 	return e.extraProperties
 }
 
+func (e *ErrorVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ErrorVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ErrorVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ErrorVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ErrorVellumValue(value)
+	*e = ErrorVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "ERROR", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3051,6 +3469,18 @@ func (e *ErrorVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ErrorVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ErrorVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ErrorVellumValue) String() string {
@@ -3068,6 +3498,7 @@ func (e *ErrorVellumValue) String() string {
 // A value representing an Error.
 type ErrorVellumValueRequest struct {
 	Value *VellumErrorRequest `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3077,15 +3508,28 @@ func (e *ErrorVellumValueRequest) GetExtraProperties() map[string]interface{} {
 	return e.extraProperties
 }
 
+func (e *ErrorVellumValueRequest) Type() string {
+	return e.type_
+}
+
 func (e *ErrorVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ErrorVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ErrorVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ErrorVellumValueRequest(value)
+	*e = ErrorVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "ERROR", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3093,6 +3537,18 @@ func (e *ErrorVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ErrorVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed ErrorVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ErrorVellumValueRequest) String() string {
@@ -3108,143 +3564,117 @@ func (e *ErrorVellumValueRequest) String() string {
 }
 
 type ExecutePromptEvent struct {
-	State     string
-	Initiated *InitiatedExecutePromptEvent
-	Streaming *StreamingExecutePromptEvent
-	Fulfilled *FulfilledExecutePromptEvent
-	Rejected  *RejectedExecutePromptEvent
+	InitiatedExecutePromptEvent *InitiatedExecutePromptEvent
+	StreamingExecutePromptEvent *StreamingExecutePromptEvent
+	FulfilledExecutePromptEvent *FulfilledExecutePromptEvent
+	RejectedExecutePromptEvent  *RejectedExecutePromptEvent
 }
 
 func (e *ExecutePromptEvent) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		State string `json:"state"`
+	valueInitiatedExecutePromptEvent := new(InitiatedExecutePromptEvent)
+	if err := json.Unmarshal(data, &valueInitiatedExecutePromptEvent); err == nil {
+		e.InitiatedExecutePromptEvent = valueInitiatedExecutePromptEvent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueStreamingExecutePromptEvent := new(StreamingExecutePromptEvent)
+	if err := json.Unmarshal(data, &valueStreamingExecutePromptEvent); err == nil {
+		e.StreamingExecutePromptEvent = valueStreamingExecutePromptEvent
+		return nil
 	}
-	e.State = unmarshaler.State
-	switch unmarshaler.State {
-	case "INITIATED":
-		value := new(InitiatedExecutePromptEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Initiated = value
-	case "STREAMING":
-		value := new(StreamingExecutePromptEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Streaming = value
-	case "FULFILLED":
-		value := new(FulfilledExecutePromptEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Fulfilled = value
-	case "REJECTED":
-		value := new(RejectedExecutePromptEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Rejected = value
+	valueFulfilledExecutePromptEvent := new(FulfilledExecutePromptEvent)
+	if err := json.Unmarshal(data, &valueFulfilledExecutePromptEvent); err == nil {
+		e.FulfilledExecutePromptEvent = valueFulfilledExecutePromptEvent
+		return nil
 	}
-	return nil
+	valueRejectedExecutePromptEvent := new(RejectedExecutePromptEvent)
+	if err := json.Unmarshal(data, &valueRejectedExecutePromptEvent); err == nil {
+		e.RejectedExecutePromptEvent = valueRejectedExecutePromptEvent
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, e)
 }
 
 func (e ExecutePromptEvent) MarshalJSON() ([]byte, error) {
-	if e.Initiated != nil {
-		return core.MarshalJSONWithExtraProperty(e.Initiated, "state", "INITIATED")
+	if e.InitiatedExecutePromptEvent != nil {
+		return json.Marshal(e.InitiatedExecutePromptEvent)
 	}
-	if e.Streaming != nil {
-		return core.MarshalJSONWithExtraProperty(e.Streaming, "state", "STREAMING")
+	if e.StreamingExecutePromptEvent != nil {
+		return json.Marshal(e.StreamingExecutePromptEvent)
 	}
-	if e.Fulfilled != nil {
-		return core.MarshalJSONWithExtraProperty(e.Fulfilled, "state", "FULFILLED")
+	if e.FulfilledExecutePromptEvent != nil {
+		return json.Marshal(e.FulfilledExecutePromptEvent)
 	}
-	if e.Rejected != nil {
-		return core.MarshalJSONWithExtraProperty(e.Rejected, "state", "REJECTED")
+	if e.RejectedExecutePromptEvent != nil {
+		return json.Marshal(e.RejectedExecutePromptEvent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", e)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecutePromptEventVisitor interface {
-	VisitInitiated(*InitiatedExecutePromptEvent) error
-	VisitStreaming(*StreamingExecutePromptEvent) error
-	VisitFulfilled(*FulfilledExecutePromptEvent) error
-	VisitRejected(*RejectedExecutePromptEvent) error
+	VisitInitiatedExecutePromptEvent(*InitiatedExecutePromptEvent) error
+	VisitStreamingExecutePromptEvent(*StreamingExecutePromptEvent) error
+	VisitFulfilledExecutePromptEvent(*FulfilledExecutePromptEvent) error
+	VisitRejectedExecutePromptEvent(*RejectedExecutePromptEvent) error
 }
 
 func (e *ExecutePromptEvent) Accept(visitor ExecutePromptEventVisitor) error {
-	if e.Initiated != nil {
-		return visitor.VisitInitiated(e.Initiated)
+	if e.InitiatedExecutePromptEvent != nil {
+		return visitor.VisitInitiatedExecutePromptEvent(e.InitiatedExecutePromptEvent)
 	}
-	if e.Streaming != nil {
-		return visitor.VisitStreaming(e.Streaming)
+	if e.StreamingExecutePromptEvent != nil {
+		return visitor.VisitStreamingExecutePromptEvent(e.StreamingExecutePromptEvent)
 	}
-	if e.Fulfilled != nil {
-		return visitor.VisitFulfilled(e.Fulfilled)
+	if e.FulfilledExecutePromptEvent != nil {
+		return visitor.VisitFulfilledExecutePromptEvent(e.FulfilledExecutePromptEvent)
 	}
-	if e.Rejected != nil {
-		return visitor.VisitRejected(e.Rejected)
+	if e.RejectedExecutePromptEvent != nil {
+		return visitor.VisitRejectedExecutePromptEvent(e.RejectedExecutePromptEvent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", e)
+	return fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecutePromptResponse struct {
-	State     string
-	Fulfilled *FulfilledExecutePromptResponse
-	Rejected  *RejectedExecutePromptResponse
+	FulfilledExecutePromptResponse *FulfilledExecutePromptResponse
+	RejectedExecutePromptResponse  *RejectedExecutePromptResponse
 }
 
 func (e *ExecutePromptResponse) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		State string `json:"state"`
+	valueFulfilledExecutePromptResponse := new(FulfilledExecutePromptResponse)
+	if err := json.Unmarshal(data, &valueFulfilledExecutePromptResponse); err == nil {
+		e.FulfilledExecutePromptResponse = valueFulfilledExecutePromptResponse
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueRejectedExecutePromptResponse := new(RejectedExecutePromptResponse)
+	if err := json.Unmarshal(data, &valueRejectedExecutePromptResponse); err == nil {
+		e.RejectedExecutePromptResponse = valueRejectedExecutePromptResponse
+		return nil
 	}
-	e.State = unmarshaler.State
-	switch unmarshaler.State {
-	case "FULFILLED":
-		value := new(FulfilledExecutePromptResponse)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Fulfilled = value
-	case "REJECTED":
-		value := new(RejectedExecutePromptResponse)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Rejected = value
-	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, e)
 }
 
 func (e ExecutePromptResponse) MarshalJSON() ([]byte, error) {
-	if e.Fulfilled != nil {
-		return core.MarshalJSONWithExtraProperty(e.Fulfilled, "state", "FULFILLED")
+	if e.FulfilledExecutePromptResponse != nil {
+		return json.Marshal(e.FulfilledExecutePromptResponse)
 	}
-	if e.Rejected != nil {
-		return core.MarshalJSONWithExtraProperty(e.Rejected, "state", "REJECTED")
+	if e.RejectedExecutePromptResponse != nil {
+		return json.Marshal(e.RejectedExecutePromptResponse)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", e)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecutePromptResponseVisitor interface {
-	VisitFulfilled(*FulfilledExecutePromptResponse) error
-	VisitRejected(*RejectedExecutePromptResponse) error
+	VisitFulfilledExecutePromptResponse(*FulfilledExecutePromptResponse) error
+	VisitRejectedExecutePromptResponse(*RejectedExecutePromptResponse) error
 }
 
 func (e *ExecutePromptResponse) Accept(visitor ExecutePromptResponseVisitor) error {
-	if e.Fulfilled != nil {
-		return visitor.VisitFulfilled(e.Fulfilled)
+	if e.FulfilledExecutePromptResponse != nil {
+		return visitor.VisitFulfilledExecutePromptResponse(e.FulfilledExecutePromptResponse)
 	}
-	if e.Rejected != nil {
-		return visitor.VisitRejected(e.Rejected)
+	if e.RejectedExecutePromptResponse != nil {
+		return visitor.VisitRejectedExecutePromptResponse(e.RejectedExecutePromptResponse)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", e)
+	return fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecuteWorkflowResponse struct {
@@ -3292,59 +3722,47 @@ func (e *ExecuteWorkflowResponse) String() string {
 }
 
 type ExecuteWorkflowWorkflowResultEvent struct {
-	State     string
-	Fulfilled *FulfilledExecuteWorkflowWorkflowResultEvent
-	Rejected  *RejectedExecuteWorkflowWorkflowResultEvent
+	FulfilledExecuteWorkflowWorkflowResultEvent *FulfilledExecuteWorkflowWorkflowResultEvent
+	RejectedExecuteWorkflowWorkflowResultEvent  *RejectedExecuteWorkflowWorkflowResultEvent
 }
 
 func (e *ExecuteWorkflowWorkflowResultEvent) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		State string `json:"state"`
+	valueFulfilledExecuteWorkflowWorkflowResultEvent := new(FulfilledExecuteWorkflowWorkflowResultEvent)
+	if err := json.Unmarshal(data, &valueFulfilledExecuteWorkflowWorkflowResultEvent); err == nil {
+		e.FulfilledExecuteWorkflowWorkflowResultEvent = valueFulfilledExecuteWorkflowWorkflowResultEvent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueRejectedExecuteWorkflowWorkflowResultEvent := new(RejectedExecuteWorkflowWorkflowResultEvent)
+	if err := json.Unmarshal(data, &valueRejectedExecuteWorkflowWorkflowResultEvent); err == nil {
+		e.RejectedExecuteWorkflowWorkflowResultEvent = valueRejectedExecuteWorkflowWorkflowResultEvent
+		return nil
 	}
-	e.State = unmarshaler.State
-	switch unmarshaler.State {
-	case "FULFILLED":
-		value := new(FulfilledExecuteWorkflowWorkflowResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Fulfilled = value
-	case "REJECTED":
-		value := new(RejectedExecuteWorkflowWorkflowResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Rejected = value
-	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, e)
 }
 
 func (e ExecuteWorkflowWorkflowResultEvent) MarshalJSON() ([]byte, error) {
-	if e.Fulfilled != nil {
-		return core.MarshalJSONWithExtraProperty(e.Fulfilled, "state", "FULFILLED")
+	if e.FulfilledExecuteWorkflowWorkflowResultEvent != nil {
+		return json.Marshal(e.FulfilledExecuteWorkflowWorkflowResultEvent)
 	}
-	if e.Rejected != nil {
-		return core.MarshalJSONWithExtraProperty(e.Rejected, "state", "REJECTED")
+	if e.RejectedExecuteWorkflowWorkflowResultEvent != nil {
+		return json.Marshal(e.RejectedExecuteWorkflowWorkflowResultEvent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", e)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecuteWorkflowWorkflowResultEventVisitor interface {
-	VisitFulfilled(*FulfilledExecuteWorkflowWorkflowResultEvent) error
-	VisitRejected(*RejectedExecuteWorkflowWorkflowResultEvent) error
+	VisitFulfilledExecuteWorkflowWorkflowResultEvent(*FulfilledExecuteWorkflowWorkflowResultEvent) error
+	VisitRejectedExecuteWorkflowWorkflowResultEvent(*RejectedExecuteWorkflowWorkflowResultEvent) error
 }
 
 func (e *ExecuteWorkflowWorkflowResultEvent) Accept(visitor ExecuteWorkflowWorkflowResultEventVisitor) error {
-	if e.Fulfilled != nil {
-		return visitor.VisitFulfilled(e.Fulfilled)
+	if e.FulfilledExecuteWorkflowWorkflowResultEvent != nil {
+		return visitor.VisitFulfilledExecuteWorkflowWorkflowResultEvent(e.FulfilledExecuteWorkflowWorkflowResultEvent)
 	}
-	if e.Rejected != nil {
-		return visitor.VisitRejected(e.Rejected)
+	if e.RejectedExecuteWorkflowWorkflowResultEvent != nil {
+		return visitor.VisitRejectedExecuteWorkflowWorkflowResultEvent(e.RejectedExecuteWorkflowWorkflowResultEvent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", e)
+	return fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 // A value representing an array of Vellum variable values.
@@ -3353,6 +3771,7 @@ type ExecutionArrayVellumValue struct {
 	Id    string                  `json:"id" url:"id"`
 	Name  string                  `json:"name" url:"name"`
 	Value []*ArrayVellumValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3362,15 +3781,28 @@ func (e *ExecutionArrayVellumValue) GetExtraProperties() map[string]interface{} 
 	return e.extraProperties
 }
 
+func (e *ExecutionArrayVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionArrayVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionArrayVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionArrayVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionArrayVellumValue(value)
+	*e = ExecutionArrayVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "ARRAY", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3378,6 +3810,18 @@ func (e *ExecutionArrayVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionArrayVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionArrayVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionArrayVellumValue) String() string {
@@ -3398,6 +3842,7 @@ type ExecutionChatHistoryVellumValue struct {
 	Id    string         `json:"id" url:"id"`
 	Name  string         `json:"name" url:"name"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3407,15 +3852,28 @@ func (e *ExecutionChatHistoryVellumValue) GetExtraProperties() map[string]interf
 	return e.extraProperties
 }
 
+func (e *ExecutionChatHistoryVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionChatHistoryVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionChatHistoryVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionChatHistoryVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionChatHistoryVellumValue(value)
+	*e = ExecutionChatHistoryVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3423,6 +3881,18 @@ func (e *ExecutionChatHistoryVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionChatHistoryVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionChatHistoryVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionChatHistoryVellumValue) String() string {
@@ -3443,6 +3913,7 @@ type ExecutionErrorVellumValue struct {
 	Id    string       `json:"id" url:"id"`
 	Name  string       `json:"name" url:"name"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3452,15 +3923,28 @@ func (e *ExecutionErrorVellumValue) GetExtraProperties() map[string]interface{} 
 	return e.extraProperties
 }
 
+func (e *ExecutionErrorVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionErrorVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionErrorVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionErrorVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionErrorVellumValue(value)
+	*e = ExecutionErrorVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "ERROR", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3468,6 +3952,18 @@ func (e *ExecutionErrorVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionErrorVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionErrorVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionErrorVellumValue) String() string {
@@ -3488,6 +3984,7 @@ type ExecutionFunctionCallVellumValue struct {
 	Id    string        `json:"id" url:"id"`
 	Name  string        `json:"name" url:"name"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3497,15 +3994,28 @@ func (e *ExecutionFunctionCallVellumValue) GetExtraProperties() map[string]inter
 	return e.extraProperties
 }
 
+func (e *ExecutionFunctionCallVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionFunctionCallVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionFunctionCallVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionFunctionCallVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionFunctionCallVellumValue(value)
+	*e = ExecutionFunctionCallVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3513,6 +4023,18 @@ func (e *ExecutionFunctionCallVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionFunctionCallVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionFunctionCallVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionFunctionCallVellumValue) String() string {
@@ -3533,6 +4055,7 @@ type ExecutionJsonVellumValue struct {
 	Id    string      `json:"id" url:"id"`
 	Name  string      `json:"name" url:"name"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3542,15 +4065,28 @@ func (e *ExecutionJsonVellumValue) GetExtraProperties() map[string]interface{} {
 	return e.extraProperties
 }
 
+func (e *ExecutionJsonVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionJsonVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionJsonVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionJsonVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionJsonVellumValue(value)
+	*e = ExecutionJsonVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "JSON", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3558,6 +4094,18 @@ func (e *ExecutionJsonVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionJsonVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionJsonVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionJsonVellumValue) String() string {
@@ -3578,6 +4126,7 @@ type ExecutionNumberVellumValue struct {
 	Id    string   `json:"id" url:"id"`
 	Name  string   `json:"name" url:"name"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3587,15 +4136,28 @@ func (e *ExecutionNumberVellumValue) GetExtraProperties() map[string]interface{}
 	return e.extraProperties
 }
 
+func (e *ExecutionNumberVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionNumberVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionNumberVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionNumberVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionNumberVellumValue(value)
+	*e = ExecutionNumberVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "NUMBER", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3603,6 +4165,18 @@ func (e *ExecutionNumberVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionNumberVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionNumberVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionNumberVellumValue) String() string {
@@ -3623,6 +4197,7 @@ type ExecutionSearchResultsVellumValue struct {
 	Id    string          `json:"id" url:"id"`
 	Name  string          `json:"name" url:"name"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3632,15 +4207,28 @@ func (e *ExecutionSearchResultsVellumValue) GetExtraProperties() map[string]inte
 	return e.extraProperties
 }
 
+func (e *ExecutionSearchResultsVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionSearchResultsVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionSearchResultsVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionSearchResultsVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionSearchResultsVellumValue(value)
+	*e = ExecutionSearchResultsVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3648,6 +4236,18 @@ func (e *ExecutionSearchResultsVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionSearchResultsVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionSearchResultsVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionSearchResultsVellumValue) String() string {
@@ -3668,6 +4268,7 @@ type ExecutionStringVellumValue struct {
 	Id    string  `json:"id" url:"id"`
 	Name  string  `json:"name" url:"name"`
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3677,15 +4278,28 @@ func (e *ExecutionStringVellumValue) GetExtraProperties() map[string]interface{}
 	return e.extraProperties
 }
 
+func (e *ExecutionStringVellumValue) Type() string {
+	return e.type_
+}
+
 func (e *ExecutionStringVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ExecutionStringVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ExecutionStringVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*e = ExecutionStringVellumValue(value)
+	*e = ExecutionStringVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", e, "STRING", unmarshaler.Type)
+	}
+	e.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *e)
+	extraProperties, err := core.ExtractExtraProperties(data, *e, "type")
 	if err != nil {
 		return err
 	}
@@ -3693,6 +4307,18 @@ func (e *ExecutionStringVellumValue) UnmarshalJSON(data []byte) error {
 
 	e._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (e *ExecutionStringVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ExecutionStringVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*e),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (e *ExecutionStringVellumValue) String() string {
@@ -3708,143 +4334,125 @@ func (e *ExecutionStringVellumValue) String() string {
 }
 
 type ExecutionVellumValue struct {
-	Type          string
-	String        *ExecutionStringVellumValue
-	Number        *ExecutionNumberVellumValue
-	Json          *ExecutionJsonVellumValue
-	ChatHistory   *ExecutionChatHistoryVellumValue
-	SearchResults *ExecutionSearchResultsVellumValue
-	Error         *ExecutionErrorVellumValue
-	Array         *ExecutionArrayVellumValue
-	FunctionCall  *ExecutionFunctionCallVellumValue
+	ExecutionStringVellumValue        *ExecutionStringVellumValue
+	ExecutionNumberVellumValue        *ExecutionNumberVellumValue
+	ExecutionJsonVellumValue          *ExecutionJsonVellumValue
+	ExecutionChatHistoryVellumValue   *ExecutionChatHistoryVellumValue
+	ExecutionSearchResultsVellumValue *ExecutionSearchResultsVellumValue
+	ExecutionErrorVellumValue         *ExecutionErrorVellumValue
+	ExecutionArrayVellumValue         *ExecutionArrayVellumValue
+	ExecutionFunctionCallVellumValue  *ExecutionFunctionCallVellumValue
 }
 
 func (e *ExecutionVellumValue) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueExecutionStringVellumValue := new(ExecutionStringVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionStringVellumValue); err == nil {
+		e.ExecutionStringVellumValue = valueExecutionStringVellumValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueExecutionNumberVellumValue := new(ExecutionNumberVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionNumberVellumValue); err == nil {
+		e.ExecutionNumberVellumValue = valueExecutionNumberVellumValue
+		return nil
 	}
-	e.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(ExecutionStringVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.String = value
-	case "NUMBER":
-		value := new(ExecutionNumberVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Number = value
-	case "JSON":
-		value := new(ExecutionJsonVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Json = value
-	case "CHAT_HISTORY":
-		value := new(ExecutionChatHistoryVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(ExecutionSearchResultsVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.SearchResults = value
-	case "ERROR":
-		value := new(ExecutionErrorVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Error = value
-	case "ARRAY":
-		value := new(ExecutionArrayVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.Array = value
-	case "FUNCTION_CALL":
-		value := new(ExecutionFunctionCallVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		e.FunctionCall = value
+	valueExecutionJsonVellumValue := new(ExecutionJsonVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionJsonVellumValue); err == nil {
+		e.ExecutionJsonVellumValue = valueExecutionJsonVellumValue
+		return nil
 	}
-	return nil
+	valueExecutionChatHistoryVellumValue := new(ExecutionChatHistoryVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionChatHistoryVellumValue); err == nil {
+		e.ExecutionChatHistoryVellumValue = valueExecutionChatHistoryVellumValue
+		return nil
+	}
+	valueExecutionSearchResultsVellumValue := new(ExecutionSearchResultsVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionSearchResultsVellumValue); err == nil {
+		e.ExecutionSearchResultsVellumValue = valueExecutionSearchResultsVellumValue
+		return nil
+	}
+	valueExecutionErrorVellumValue := new(ExecutionErrorVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionErrorVellumValue); err == nil {
+		e.ExecutionErrorVellumValue = valueExecutionErrorVellumValue
+		return nil
+	}
+	valueExecutionArrayVellumValue := new(ExecutionArrayVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionArrayVellumValue); err == nil {
+		e.ExecutionArrayVellumValue = valueExecutionArrayVellumValue
+		return nil
+	}
+	valueExecutionFunctionCallVellumValue := new(ExecutionFunctionCallVellumValue)
+	if err := json.Unmarshal(data, &valueExecutionFunctionCallVellumValue); err == nil {
+		e.ExecutionFunctionCallVellumValue = valueExecutionFunctionCallVellumValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, e)
 }
 
 func (e ExecutionVellumValue) MarshalJSON() ([]byte, error) {
-	if e.String != nil {
-		return core.MarshalJSONWithExtraProperty(e.String, "type", "STRING")
+	if e.ExecutionStringVellumValue != nil {
+		return json.Marshal(e.ExecutionStringVellumValue)
 	}
-	if e.Number != nil {
-		return core.MarshalJSONWithExtraProperty(e.Number, "type", "NUMBER")
+	if e.ExecutionNumberVellumValue != nil {
+		return json.Marshal(e.ExecutionNumberVellumValue)
 	}
-	if e.Json != nil {
-		return core.MarshalJSONWithExtraProperty(e.Json, "type", "JSON")
+	if e.ExecutionJsonVellumValue != nil {
+		return json.Marshal(e.ExecutionJsonVellumValue)
 	}
-	if e.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(e.ChatHistory, "type", "CHAT_HISTORY")
+	if e.ExecutionChatHistoryVellumValue != nil {
+		return json.Marshal(e.ExecutionChatHistoryVellumValue)
 	}
-	if e.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(e.SearchResults, "type", "SEARCH_RESULTS")
+	if e.ExecutionSearchResultsVellumValue != nil {
+		return json.Marshal(e.ExecutionSearchResultsVellumValue)
 	}
-	if e.Error != nil {
-		return core.MarshalJSONWithExtraProperty(e.Error, "type", "ERROR")
+	if e.ExecutionErrorVellumValue != nil {
+		return json.Marshal(e.ExecutionErrorVellumValue)
 	}
-	if e.Array != nil {
-		return core.MarshalJSONWithExtraProperty(e.Array, "type", "ARRAY")
+	if e.ExecutionArrayVellumValue != nil {
+		return json.Marshal(e.ExecutionArrayVellumValue)
 	}
-	if e.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(e.FunctionCall, "type", "FUNCTION_CALL")
+	if e.ExecutionFunctionCallVellumValue != nil {
+		return json.Marshal(e.ExecutionFunctionCallVellumValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", e)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExecutionVellumValueVisitor interface {
-	VisitString(*ExecutionStringVellumValue) error
-	VisitNumber(*ExecutionNumberVellumValue) error
-	VisitJson(*ExecutionJsonVellumValue) error
-	VisitChatHistory(*ExecutionChatHistoryVellumValue) error
-	VisitSearchResults(*ExecutionSearchResultsVellumValue) error
-	VisitError(*ExecutionErrorVellumValue) error
-	VisitArray(*ExecutionArrayVellumValue) error
-	VisitFunctionCall(*ExecutionFunctionCallVellumValue) error
+	VisitExecutionStringVellumValue(*ExecutionStringVellumValue) error
+	VisitExecutionNumberVellumValue(*ExecutionNumberVellumValue) error
+	VisitExecutionJsonVellumValue(*ExecutionJsonVellumValue) error
+	VisitExecutionChatHistoryVellumValue(*ExecutionChatHistoryVellumValue) error
+	VisitExecutionSearchResultsVellumValue(*ExecutionSearchResultsVellumValue) error
+	VisitExecutionErrorVellumValue(*ExecutionErrorVellumValue) error
+	VisitExecutionArrayVellumValue(*ExecutionArrayVellumValue) error
+	VisitExecutionFunctionCallVellumValue(*ExecutionFunctionCallVellumValue) error
 }
 
 func (e *ExecutionVellumValue) Accept(visitor ExecutionVellumValueVisitor) error {
-	if e.String != nil {
-		return visitor.VisitString(e.String)
+	if e.ExecutionStringVellumValue != nil {
+		return visitor.VisitExecutionStringVellumValue(e.ExecutionStringVellumValue)
 	}
-	if e.Number != nil {
-		return visitor.VisitNumber(e.Number)
+	if e.ExecutionNumberVellumValue != nil {
+		return visitor.VisitExecutionNumberVellumValue(e.ExecutionNumberVellumValue)
 	}
-	if e.Json != nil {
-		return visitor.VisitJson(e.Json)
+	if e.ExecutionJsonVellumValue != nil {
+		return visitor.VisitExecutionJsonVellumValue(e.ExecutionJsonVellumValue)
 	}
-	if e.ChatHistory != nil {
-		return visitor.VisitChatHistory(e.ChatHistory)
+	if e.ExecutionChatHistoryVellumValue != nil {
+		return visitor.VisitExecutionChatHistoryVellumValue(e.ExecutionChatHistoryVellumValue)
 	}
-	if e.SearchResults != nil {
-		return visitor.VisitSearchResults(e.SearchResults)
+	if e.ExecutionSearchResultsVellumValue != nil {
+		return visitor.VisitExecutionSearchResultsVellumValue(e.ExecutionSearchResultsVellumValue)
 	}
-	if e.Error != nil {
-		return visitor.VisitError(e.Error)
+	if e.ExecutionErrorVellumValue != nil {
+		return visitor.VisitExecutionErrorVellumValue(e.ExecutionErrorVellumValue)
 	}
-	if e.Array != nil {
-		return visitor.VisitArray(e.Array)
+	if e.ExecutionArrayVellumValue != nil {
+		return visitor.VisitExecutionArrayVellumValue(e.ExecutionArrayVellumValue)
 	}
-	if e.FunctionCall != nil {
-		return visitor.VisitFunctionCall(e.FunctionCall)
+	if e.ExecutionFunctionCallVellumValue != nil {
+		return visitor.VisitExecutionFunctionCallVellumValue(e.ExecutionFunctionCallVellumValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", e)
+	return fmt.Errorf("type %T does not include a non-empty union type", e)
 }
 
 type ExternalTestCaseExecution struct {
@@ -3968,6 +4576,7 @@ type FulfilledExecutePromptEvent struct {
 	Outputs     []*PromptOutput               `json:"outputs" url:"outputs"`
 	ExecutionId string                        `json:"execution_id" url:"execution_id"`
 	Meta        *FulfilledPromptExecutionMeta `json:"meta,omitempty" url:"meta,omitempty"`
+	state       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -3977,15 +4586,28 @@ func (f *FulfilledExecutePromptEvent) GetExtraProperties() map[string]interface{
 	return f.extraProperties
 }
 
+func (f *FulfilledExecutePromptEvent) State() string {
+	return f.state
+}
+
 func (f *FulfilledExecutePromptEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler FulfilledExecutePromptEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FulfilledExecutePromptEvent
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FulfilledExecutePromptEvent(value)
+	*f = FulfilledExecutePromptEvent(unmarshaler.embed)
+	if unmarshaler.State != "FULFILLED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FULFILLED", unmarshaler.State)
+	}
+	f.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "state")
 	if err != nil {
 		return err
 	}
@@ -3993,6 +4615,18 @@ func (f *FulfilledExecutePromptEvent) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FulfilledExecutePromptEvent) MarshalJSON() ([]byte, error) {
+	type embed FulfilledExecutePromptEvent
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*f),
+		State: "FULFILLED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FulfilledExecutePromptEvent) String() string {
@@ -4015,6 +4649,7 @@ type FulfilledExecutePromptResponse struct {
 	// The ID of the execution.
 	ExecutionId string          `json:"execution_id" url:"execution_id"`
 	Outputs     []*PromptOutput `json:"outputs" url:"outputs"`
+	state       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4024,15 +4659,28 @@ func (f *FulfilledExecutePromptResponse) GetExtraProperties() map[string]interfa
 	return f.extraProperties
 }
 
+func (f *FulfilledExecutePromptResponse) State() string {
+	return f.state
+}
+
 func (f *FulfilledExecutePromptResponse) UnmarshalJSON(data []byte) error {
-	type unmarshaler FulfilledExecutePromptResponse
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FulfilledExecutePromptResponse
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FulfilledExecutePromptResponse(value)
+	*f = FulfilledExecutePromptResponse(unmarshaler.embed)
+	if unmarshaler.State != "FULFILLED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FULFILLED", unmarshaler.State)
+	}
+	f.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "state")
 	if err != nil {
 		return err
 	}
@@ -4040,6 +4688,18 @@ func (f *FulfilledExecutePromptResponse) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FulfilledExecutePromptResponse) MarshalJSON() ([]byte, error) {
+	type embed FulfilledExecutePromptResponse
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*f),
+		State: "FULFILLED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FulfilledExecutePromptResponse) String() string {
@@ -4059,6 +4719,7 @@ type FulfilledExecuteWorkflowWorkflowResultEvent struct {
 	Id      string            `json:"id" url:"id"`
 	Ts      time.Time         `json:"ts" url:"ts"`
 	Outputs []*WorkflowOutput `json:"outputs" url:"outputs"`
+	state   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4068,11 +4729,16 @@ func (f *FulfilledExecuteWorkflowWorkflowResultEvent) GetExtraProperties() map[s
 	return f.extraProperties
 }
 
+func (f *FulfilledExecuteWorkflowWorkflowResultEvent) State() string {
+	return f.state
+}
+
 func (f *FulfilledExecuteWorkflowWorkflowResultEvent) UnmarshalJSON(data []byte) error {
 	type embed FulfilledExecuteWorkflowWorkflowResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts"`
+		Ts    *core.DateTime `json:"ts"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*f),
 	}
@@ -4081,8 +4747,12 @@ func (f *FulfilledExecuteWorkflowWorkflowResultEvent) UnmarshalJSON(data []byte)
 	}
 	*f = FulfilledExecuteWorkflowWorkflowResultEvent(unmarshaler.embed)
 	f.Ts = unmarshaler.Ts.Time()
+	if unmarshaler.State != "FULFILLED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FULFILLED", unmarshaler.State)
+	}
+	f.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "state")
 	if err != nil {
 		return err
 	}
@@ -4096,10 +4766,12 @@ func (f *FulfilledExecuteWorkflowWorkflowResultEvent) MarshalJSON() ([]byte, err
 	type embed FulfilledExecuteWorkflowWorkflowResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts"`
+		Ts    *core.DateTime `json:"ts"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*f),
 		Ts:    core.NewDateTime(f.Ts),
+		State: "FULFILLED",
 	}
 	return json.Marshal(marshaler)
 }
@@ -4170,6 +4842,7 @@ type FulfilledWorkflowNodeResultEvent struct {
 	SourceExecutionId *string                    `json:"source_execution_id,omitempty" url:"source_execution_id,omitempty"`
 	OutputValues      []*NodeOutputCompiledValue `json:"output_values" url:"output_values"`
 	Mocked            *bool                      `json:"mocked,omitempty" url:"mocked,omitempty"`
+	state             string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4179,11 +4852,16 @@ func (f *FulfilledWorkflowNodeResultEvent) GetExtraProperties() map[string]inter
 	return f.extraProperties
 }
 
+func (f *FulfilledWorkflowNodeResultEvent) State() string {
+	return f.state
+}
+
 func (f *FulfilledWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	type embed FulfilledWorkflowNodeResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*f),
 	}
@@ -4192,8 +4870,12 @@ func (f *FulfilledWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	}
 	*f = FulfilledWorkflowNodeResultEvent(unmarshaler.embed)
 	f.Ts = unmarshaler.Ts.TimePtr()
+	if unmarshaler.State != "FULFILLED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FULFILLED", unmarshaler.State)
+	}
+	f.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "state")
 	if err != nil {
 		return err
 	}
@@ -4207,10 +4889,12 @@ func (f *FulfilledWorkflowNodeResultEvent) MarshalJSON() ([]byte, error) {
 	type embed FulfilledWorkflowNodeResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*f),
 		Ts:    core.NewOptionalDateTime(f.Ts),
+		State: "FULFILLED",
 	}
 	return json.Marshal(marshaler)
 }
@@ -4275,6 +4959,7 @@ func (f *FunctionCall) String() string {
 // A function call value that is used in a chat message.
 type FunctionCallChatMessageContent struct {
 	Value *FunctionCallChatMessageContentValue `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4284,15 +4969,28 @@ func (f *FunctionCallChatMessageContent) GetExtraProperties() map[string]interfa
 	return f.extraProperties
 }
 
+func (f *FunctionCallChatMessageContent) Type() string {
+	return f.type_
+}
+
 func (f *FunctionCallChatMessageContent) UnmarshalJSON(data []byte) error {
-	type unmarshaler FunctionCallChatMessageContent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FunctionCallChatMessageContent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FunctionCallChatMessageContent(value)
+	*f = FunctionCallChatMessageContent(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	f.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "type")
 	if err != nil {
 		return err
 	}
@@ -4300,6 +4998,18 @@ func (f *FunctionCallChatMessageContent) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FunctionCallChatMessageContent) MarshalJSON() ([]byte, error) {
+	type embed FunctionCallChatMessageContent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FunctionCallChatMessageContent) String() string {
@@ -4317,6 +5027,7 @@ func (f *FunctionCallChatMessageContent) String() string {
 // A function call value that is used in a chat message.
 type FunctionCallChatMessageContentRequest struct {
 	Value *FunctionCallChatMessageContentValueRequest `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4326,15 +5037,28 @@ func (f *FunctionCallChatMessageContentRequest) GetExtraProperties() map[string]
 	return f.extraProperties
 }
 
+func (f *FunctionCallChatMessageContentRequest) Type() string {
+	return f.type_
+}
+
 func (f *FunctionCallChatMessageContentRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler FunctionCallChatMessageContentRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FunctionCallChatMessageContentRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FunctionCallChatMessageContentRequest(value)
+	*f = FunctionCallChatMessageContentRequest(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	f.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "type")
 	if err != nil {
 		return err
 	}
@@ -4342,6 +5066,18 @@ func (f *FunctionCallChatMessageContentRequest) UnmarshalJSON(data []byte) error
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FunctionCallChatMessageContentRequest) MarshalJSON() ([]byte, error) {
+	type embed FunctionCallChatMessageContentRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FunctionCallChatMessageContentRequest) String() string {
@@ -4491,6 +5227,7 @@ func (f *FunctionCallRequest) String() string {
 
 type FunctionCallVariableValue struct {
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4500,15 +5237,28 @@ func (f *FunctionCallVariableValue) GetExtraProperties() map[string]interface{} 
 	return f.extraProperties
 }
 
+func (f *FunctionCallVariableValue) Type() string {
+	return f.type_
+}
+
 func (f *FunctionCallVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler FunctionCallVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FunctionCallVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FunctionCallVariableValue(value)
+	*f = FunctionCallVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	f.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "type")
 	if err != nil {
 		return err
 	}
@@ -4516,6 +5266,18 @@ func (f *FunctionCallVariableValue) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FunctionCallVariableValue) MarshalJSON() ([]byte, error) {
+	type embed FunctionCallVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FunctionCallVariableValue) String() string {
@@ -4533,6 +5295,7 @@ func (f *FunctionCallVariableValue) String() string {
 // A value representing a Function Call.
 type FunctionCallVellumValue struct {
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4542,15 +5305,28 @@ func (f *FunctionCallVellumValue) GetExtraProperties() map[string]interface{} {
 	return f.extraProperties
 }
 
+func (f *FunctionCallVellumValue) Type() string {
+	return f.type_
+}
+
 func (f *FunctionCallVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler FunctionCallVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FunctionCallVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FunctionCallVellumValue(value)
+	*f = FunctionCallVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	f.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "type")
 	if err != nil {
 		return err
 	}
@@ -4558,6 +5334,18 @@ func (f *FunctionCallVellumValue) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FunctionCallVellumValue) MarshalJSON() ([]byte, error) {
+	type embed FunctionCallVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FunctionCallVellumValue) String() string {
@@ -4575,6 +5363,7 @@ func (f *FunctionCallVellumValue) String() string {
 // A value representing a Function Call.
 type FunctionCallVellumValueRequest struct {
 	Value *FunctionCallRequest `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -4584,15 +5373,28 @@ func (f *FunctionCallVellumValueRequest) GetExtraProperties() map[string]interfa
 	return f.extraProperties
 }
 
+func (f *FunctionCallVellumValueRequest) Type() string {
+	return f.type_
+}
+
 func (f *FunctionCallVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler FunctionCallVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed FunctionCallVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*f = FunctionCallVellumValueRequest(value)
+	*f = FunctionCallVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", f, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	f.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *f)
+	extraProperties, err := core.ExtractExtraProperties(data, *f, "type")
 	if err != nil {
 		return err
 	}
@@ -4600,6 +5402,18 @@ func (f *FunctionCallVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	f._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (f *FunctionCallVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed FunctionCallVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*f),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (f *FunctionCallVellumValueRequest) String() string {
@@ -5003,7 +5817,8 @@ func (g *GenerateStreamResultData) String() string {
 
 // Vectorizer for hkunlp/instructor-xl.
 type HkunlpInstructorXlVectorizer struct {
-	Config *InstructorVectorizerConfig `json:"config" url:"config"`
+	Config    *InstructorVectorizerConfig `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5013,15 +5828,28 @@ func (h *HkunlpInstructorXlVectorizer) GetExtraProperties() map[string]interface
 	return h.extraProperties
 }
 
+func (h *HkunlpInstructorXlVectorizer) ModelName() string {
+	return h.modelName
+}
+
 func (h *HkunlpInstructorXlVectorizer) UnmarshalJSON(data []byte) error {
-	type unmarshaler HkunlpInstructorXlVectorizer
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed HkunlpInstructorXlVectorizer
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*h),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*h = HkunlpInstructorXlVectorizer(value)
+	*h = HkunlpInstructorXlVectorizer(unmarshaler.embed)
+	if unmarshaler.ModelName != "hkunlp/instructor-xl" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", h, "hkunlp/instructor-xl", unmarshaler.ModelName)
+	}
+	h.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *h)
+	extraProperties, err := core.ExtractExtraProperties(data, *h, "model_name")
 	if err != nil {
 		return err
 	}
@@ -5029,6 +5857,18 @@ func (h *HkunlpInstructorXlVectorizer) UnmarshalJSON(data []byte) error {
 
 	h._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (h *HkunlpInstructorXlVectorizer) MarshalJSON() ([]byte, error) {
+	type embed HkunlpInstructorXlVectorizer
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*h),
+		ModelName: "hkunlp/instructor-xl",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (h *HkunlpInstructorXlVectorizer) String() string {
@@ -5045,7 +5885,8 @@ func (h *HkunlpInstructorXlVectorizer) String() string {
 
 // Vectorizer for hkunlp/instructor-xl.
 type HkunlpInstructorXlVectorizerRequest struct {
-	Config *InstructorVectorizerConfigRequest `json:"config" url:"config"`
+	Config    *InstructorVectorizerConfigRequest `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5055,15 +5896,28 @@ func (h *HkunlpInstructorXlVectorizerRequest) GetExtraProperties() map[string]in
 	return h.extraProperties
 }
 
+func (h *HkunlpInstructorXlVectorizerRequest) ModelName() string {
+	return h.modelName
+}
+
 func (h *HkunlpInstructorXlVectorizerRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler HkunlpInstructorXlVectorizerRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed HkunlpInstructorXlVectorizerRequest
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*h),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*h = HkunlpInstructorXlVectorizerRequest(value)
+	*h = HkunlpInstructorXlVectorizerRequest(unmarshaler.embed)
+	if unmarshaler.ModelName != "hkunlp/instructor-xl" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", h, "hkunlp/instructor-xl", unmarshaler.ModelName)
+	}
+	h.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *h)
+	extraProperties, err := core.ExtractExtraProperties(data, *h, "model_name")
 	if err != nil {
 		return err
 	}
@@ -5071,6 +5925,18 @@ func (h *HkunlpInstructorXlVectorizerRequest) UnmarshalJSON(data []byte) error {
 
 	h._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (h *HkunlpInstructorXlVectorizerRequest) MarshalJSON() ([]byte, error) {
+	type embed HkunlpInstructorXlVectorizerRequest
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*h),
+		ModelName: "hkunlp/instructor-xl",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (h *HkunlpInstructorXlVectorizerRequest) String() string {
@@ -5171,8 +6037,9 @@ func (h HostedByEnum) Ptr() *HostedByEnum {
 
 // Tokenizer config for Hugging Face type tokenizers.
 type HuggingFaceTokenizerConfig struct {
-	Name string  `json:"name" url:"name"`
-	Path *string `json:"path,omitempty" url:"path,omitempty"`
+	Name  string  `json:"name" url:"name"`
+	Path  *string `json:"path,omitempty" url:"path,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5182,15 +6049,28 @@ func (h *HuggingFaceTokenizerConfig) GetExtraProperties() map[string]interface{}
 	return h.extraProperties
 }
 
+func (h *HuggingFaceTokenizerConfig) Type() string {
+	return h.type_
+}
+
 func (h *HuggingFaceTokenizerConfig) UnmarshalJSON(data []byte) error {
-	type unmarshaler HuggingFaceTokenizerConfig
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed HuggingFaceTokenizerConfig
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*h),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*h = HuggingFaceTokenizerConfig(value)
+	*h = HuggingFaceTokenizerConfig(unmarshaler.embed)
+	if unmarshaler.Type != "HUGGING_FACE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", h, "HUGGING_FACE", unmarshaler.Type)
+	}
+	h.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *h)
+	extraProperties, err := core.ExtractExtraProperties(data, *h, "type")
 	if err != nil {
 		return err
 	}
@@ -5198,6 +6078,18 @@ func (h *HuggingFaceTokenizerConfig) UnmarshalJSON(data []byte) error {
 
 	h._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (h *HuggingFaceTokenizerConfig) MarshalJSON() ([]byte, error) {
+	type embed HuggingFaceTokenizerConfig
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*h),
+		Type:  "HUGGING_FACE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (h *HuggingFaceTokenizerConfig) String() string {
@@ -5214,8 +6106,9 @@ func (h *HuggingFaceTokenizerConfig) String() string {
 
 // Tokenizer config for Hugging Face type tokenizers.
 type HuggingFaceTokenizerConfigRequest struct {
-	Name string  `json:"name" url:"name"`
-	Path *string `json:"path,omitempty" url:"path,omitempty"`
+	Name  string  `json:"name" url:"name"`
+	Path  *string `json:"path,omitempty" url:"path,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5225,15 +6118,28 @@ func (h *HuggingFaceTokenizerConfigRequest) GetExtraProperties() map[string]inte
 	return h.extraProperties
 }
 
+func (h *HuggingFaceTokenizerConfigRequest) Type() string {
+	return h.type_
+}
+
 func (h *HuggingFaceTokenizerConfigRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler HuggingFaceTokenizerConfigRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed HuggingFaceTokenizerConfigRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*h),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*h = HuggingFaceTokenizerConfigRequest(value)
+	*h = HuggingFaceTokenizerConfigRequest(unmarshaler.embed)
+	if unmarshaler.Type != "HUGGING_FACE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", h, "HUGGING_FACE", unmarshaler.Type)
+	}
+	h.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *h)
+	extraProperties, err := core.ExtractExtraProperties(data, *h, "type")
 	if err != nil {
 		return err
 	}
@@ -5241,6 +6147,18 @@ func (h *HuggingFaceTokenizerConfigRequest) UnmarshalJSON(data []byte) error {
 
 	h._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (h *HuggingFaceTokenizerConfigRequest) MarshalJSON() ([]byte, error) {
+	type embed HuggingFaceTokenizerConfigRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*h),
+		Type:  "HUGGING_FACE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (h *HuggingFaceTokenizerConfigRequest) String() string {
@@ -5258,6 +6176,7 @@ func (h *HuggingFaceTokenizerConfigRequest) String() string {
 // An image value that is used in a chat message.
 type ImageChatMessageContent struct {
 	Value *VellumImage `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5267,15 +6186,28 @@ func (i *ImageChatMessageContent) GetExtraProperties() map[string]interface{} {
 	return i.extraProperties
 }
 
+func (i *ImageChatMessageContent) Type() string {
+	return i.type_
+}
+
 func (i *ImageChatMessageContent) UnmarshalJSON(data []byte) error {
-	type unmarshaler ImageChatMessageContent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ImageChatMessageContent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = ImageChatMessageContent(value)
+	*i = ImageChatMessageContent(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "IMAGE", unmarshaler.Type)
+	}
+	i.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "type")
 	if err != nil {
 		return err
 	}
@@ -5283,6 +6215,18 @@ func (i *ImageChatMessageContent) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *ImageChatMessageContent) MarshalJSON() ([]byte, error) {
+	type embed ImageChatMessageContent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *ImageChatMessageContent) String() string {
@@ -5300,6 +6244,7 @@ func (i *ImageChatMessageContent) String() string {
 // An image value that is used in a chat message.
 type ImageChatMessageContentRequest struct {
 	Value *VellumImageRequest `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5309,15 +6254,28 @@ func (i *ImageChatMessageContentRequest) GetExtraProperties() map[string]interfa
 	return i.extraProperties
 }
 
+func (i *ImageChatMessageContentRequest) Type() string {
+	return i.type_
+}
+
 func (i *ImageChatMessageContentRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ImageChatMessageContentRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ImageChatMessageContentRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = ImageChatMessageContentRequest(value)
+	*i = ImageChatMessageContentRequest(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "IMAGE", unmarshaler.Type)
+	}
+	i.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "type")
 	if err != nil {
 		return err
 	}
@@ -5325,6 +6283,18 @@ func (i *ImageChatMessageContentRequest) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *ImageChatMessageContentRequest) MarshalJSON() ([]byte, error) {
+	type embed ImageChatMessageContentRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *ImageChatMessageContentRequest) String() string {
@@ -5342,6 +6312,7 @@ func (i *ImageChatMessageContentRequest) String() string {
 // A base Vellum primitive value representing an image.
 type ImageVariableValue struct {
 	Value *VellumImage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5351,15 +6322,28 @@ func (i *ImageVariableValue) GetExtraProperties() map[string]interface{} {
 	return i.extraProperties
 }
 
+func (i *ImageVariableValue) Type() string {
+	return i.type_
+}
+
 func (i *ImageVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ImageVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ImageVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = ImageVariableValue(value)
+	*i = ImageVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "IMAGE", unmarshaler.Type)
+	}
+	i.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "type")
 	if err != nil {
 		return err
 	}
@@ -5367,6 +6351,18 @@ func (i *ImageVariableValue) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *ImageVariableValue) MarshalJSON() ([]byte, error) {
+	type embed ImageVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *ImageVariableValue) String() string {
@@ -5384,6 +6380,7 @@ func (i *ImageVariableValue) String() string {
 // A base Vellum primitive value representing an image.
 type ImageVellumValue struct {
 	Value *VellumImage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5393,15 +6390,28 @@ func (i *ImageVellumValue) GetExtraProperties() map[string]interface{} {
 	return i.extraProperties
 }
 
+func (i *ImageVellumValue) Type() string {
+	return i.type_
+}
+
 func (i *ImageVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ImageVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ImageVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = ImageVellumValue(value)
+	*i = ImageVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "IMAGE", unmarshaler.Type)
+	}
+	i.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "type")
 	if err != nil {
 		return err
 	}
@@ -5409,6 +6419,18 @@ func (i *ImageVellumValue) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *ImageVellumValue) MarshalJSON() ([]byte, error) {
+	type embed ImageVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *ImageVellumValue) String() string {
@@ -5426,6 +6448,7 @@ func (i *ImageVellumValue) String() string {
 // A base Vellum primitive value representing an image.
 type ImageVellumValueRequest struct {
 	Value *VellumImageRequest `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5435,15 +6458,28 @@ func (i *ImageVellumValueRequest) GetExtraProperties() map[string]interface{} {
 	return i.extraProperties
 }
 
+func (i *ImageVellumValueRequest) Type() string {
+	return i.type_
+}
+
 func (i *ImageVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ImageVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ImageVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = ImageVellumValueRequest(value)
+	*i = ImageVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "IMAGE", unmarshaler.Type)
+	}
+	i.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "type")
 	if err != nil {
 		return err
 	}
@@ -5451,6 +6487,18 @@ func (i *ImageVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *ImageVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed ImageVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*i),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *ImageVellumValueRequest) String() string {
@@ -5466,255 +6514,221 @@ func (i *ImageVellumValueRequest) String() string {
 }
 
 type IndexingConfigVectorizer struct {
-	ModelName                                 string
-	TextEmbedding3Small                       *OpenAiVectorizerTextEmbedding3Small
-	TextEmbedding3Large                       *OpenAiVectorizerTextEmbedding3Large
-	TextEmbeddingAda002                       *OpenAiVectorizerTextEmbeddingAda002
-	IntfloatMultilingualE5Large               *BasicVectorizerIntfloatMultilingualE5Large
-	SentenceTransformersMultiQaMpnetBaseCosV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
-	SentenceTransformersMultiQaMpnetBaseDotV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
-	HkunlpInstructorXl                        *HkunlpInstructorXlVectorizer
+	OpenAiVectorizerTextEmbedding3Small                      *OpenAiVectorizerTextEmbedding3Small
+	OpenAiVectorizerTextEmbedding3Large                      *OpenAiVectorizerTextEmbedding3Large
+	OpenAiVectorizerTextEmbeddingAda002                      *OpenAiVectorizerTextEmbeddingAda002
+	BasicVectorizerIntfloatMultilingualE5Large               *BasicVectorizerIntfloatMultilingualE5Large
+	BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
+	BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
+	HkunlpInstructorXlVectorizer                             *HkunlpInstructorXlVectorizer
 }
 
 func (i *IndexingConfigVectorizer) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		ModelName string `json:"model_name"`
+	valueOpenAiVectorizerTextEmbedding3Small := new(OpenAiVectorizerTextEmbedding3Small)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbedding3Small); err == nil {
+		i.OpenAiVectorizerTextEmbedding3Small = valueOpenAiVectorizerTextEmbedding3Small
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueOpenAiVectorizerTextEmbedding3Large := new(OpenAiVectorizerTextEmbedding3Large)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbedding3Large); err == nil {
+		i.OpenAiVectorizerTextEmbedding3Large = valueOpenAiVectorizerTextEmbedding3Large
+		return nil
 	}
-	i.ModelName = unmarshaler.ModelName
-	switch unmarshaler.ModelName {
-	case "text-embedding-3-small":
-		value := new(OpenAiVectorizerTextEmbedding3Small)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbedding3Small = value
-	case "text-embedding-3-large":
-		value := new(OpenAiVectorizerTextEmbedding3Large)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbedding3Large = value
-	case "text-embedding-ada-002":
-		value := new(OpenAiVectorizerTextEmbeddingAda002)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbeddingAda002 = value
-	case "intfloat/multilingual-e5-large":
-		value := new(BasicVectorizerIntfloatMultilingualE5Large)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.IntfloatMultilingualE5Large = value
-	case "sentence-transformers/multi-qa-mpnet-base-cos-v1":
-		value := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.SentenceTransformersMultiQaMpnetBaseCosV1 = value
-	case "sentence-transformers/multi-qa-mpnet-base-dot-v1":
-		value := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.SentenceTransformersMultiQaMpnetBaseDotV1 = value
-	case "hkunlp/instructor-xl":
-		value := new(HkunlpInstructorXlVectorizer)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.HkunlpInstructorXl = value
+	valueOpenAiVectorizerTextEmbeddingAda002 := new(OpenAiVectorizerTextEmbeddingAda002)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbeddingAda002); err == nil {
+		i.OpenAiVectorizerTextEmbeddingAda002 = valueOpenAiVectorizerTextEmbeddingAda002
+		return nil
 	}
-	return nil
+	valueBasicVectorizerIntfloatMultilingualE5Large := new(BasicVectorizerIntfloatMultilingualE5Large)
+	if err := json.Unmarshal(data, &valueBasicVectorizerIntfloatMultilingualE5Large); err == nil {
+		i.BasicVectorizerIntfloatMultilingualE5Large = valueBasicVectorizerIntfloatMultilingualE5Large
+		return nil
+	}
+	valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1)
+	if err := json.Unmarshal(data, &valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1); err == nil {
+		i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 = valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1
+		return nil
+	}
+	valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1)
+	if err := json.Unmarshal(data, &valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1); err == nil {
+		i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 = valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1
+		return nil
+	}
+	valueHkunlpInstructorXlVectorizer := new(HkunlpInstructorXlVectorizer)
+	if err := json.Unmarshal(data, &valueHkunlpInstructorXlVectorizer); err == nil {
+		i.HkunlpInstructorXlVectorizer = valueHkunlpInstructorXlVectorizer
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, i)
 }
 
 func (i IndexingConfigVectorizer) MarshalJSON() ([]byte, error) {
-	if i.TextEmbedding3Small != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbedding3Small, "model_name", "text-embedding-3-small")
+	if i.OpenAiVectorizerTextEmbedding3Small != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbedding3Small)
 	}
-	if i.TextEmbedding3Large != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbedding3Large, "model_name", "text-embedding-3-large")
+	if i.OpenAiVectorizerTextEmbedding3Large != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbedding3Large)
 	}
-	if i.TextEmbeddingAda002 != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbeddingAda002, "model_name", "text-embedding-ada-002")
+	if i.OpenAiVectorizerTextEmbeddingAda002 != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbeddingAda002)
 	}
-	if i.IntfloatMultilingualE5Large != nil {
-		return core.MarshalJSONWithExtraProperty(i.IntfloatMultilingualE5Large, "model_name", "intfloat/multilingual-e5-large")
+	if i.BasicVectorizerIntfloatMultilingualE5Large != nil {
+		return json.Marshal(i.BasicVectorizerIntfloatMultilingualE5Large)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseCosV1 != nil {
-		return core.MarshalJSONWithExtraProperty(i.SentenceTransformersMultiQaMpnetBaseCosV1, "model_name", "sentence-transformers/multi-qa-mpnet-base-cos-v1")
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 != nil {
+		return json.Marshal(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseDotV1 != nil {
-		return core.MarshalJSONWithExtraProperty(i.SentenceTransformersMultiQaMpnetBaseDotV1, "model_name", "sentence-transformers/multi-qa-mpnet-base-dot-v1")
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 != nil {
+		return json.Marshal(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1)
 	}
-	if i.HkunlpInstructorXl != nil {
-		return core.MarshalJSONWithExtraProperty(i.HkunlpInstructorXl, "model_name", "hkunlp/instructor-xl")
+	if i.HkunlpInstructorXlVectorizer != nil {
+		return json.Marshal(i.HkunlpInstructorXlVectorizer)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", i)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", i)
 }
 
 type IndexingConfigVectorizerVisitor interface {
-	VisitTextEmbedding3Small(*OpenAiVectorizerTextEmbedding3Small) error
-	VisitTextEmbedding3Large(*OpenAiVectorizerTextEmbedding3Large) error
-	VisitTextEmbeddingAda002(*OpenAiVectorizerTextEmbeddingAda002) error
-	VisitIntfloatMultilingualE5Large(*BasicVectorizerIntfloatMultilingualE5Large) error
-	VisitSentenceTransformersMultiQaMpnetBaseCosV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) error
-	VisitSentenceTransformersMultiQaMpnetBaseDotV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) error
-	VisitHkunlpInstructorXl(*HkunlpInstructorXlVectorizer) error
+	VisitOpenAiVectorizerTextEmbedding3Small(*OpenAiVectorizerTextEmbedding3Small) error
+	VisitOpenAiVectorizerTextEmbedding3Large(*OpenAiVectorizerTextEmbedding3Large) error
+	VisitOpenAiVectorizerTextEmbeddingAda002(*OpenAiVectorizerTextEmbeddingAda002) error
+	VisitBasicVectorizerIntfloatMultilingualE5Large(*BasicVectorizerIntfloatMultilingualE5Large) error
+	VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1) error
+	VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1) error
+	VisitHkunlpInstructorXlVectorizer(*HkunlpInstructorXlVectorizer) error
 }
 
 func (i *IndexingConfigVectorizer) Accept(visitor IndexingConfigVectorizerVisitor) error {
-	if i.TextEmbedding3Small != nil {
-		return visitor.VisitTextEmbedding3Small(i.TextEmbedding3Small)
+	if i.OpenAiVectorizerTextEmbedding3Small != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbedding3Small(i.OpenAiVectorizerTextEmbedding3Small)
 	}
-	if i.TextEmbedding3Large != nil {
-		return visitor.VisitTextEmbedding3Large(i.TextEmbedding3Large)
+	if i.OpenAiVectorizerTextEmbedding3Large != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbedding3Large(i.OpenAiVectorizerTextEmbedding3Large)
 	}
-	if i.TextEmbeddingAda002 != nil {
-		return visitor.VisitTextEmbeddingAda002(i.TextEmbeddingAda002)
+	if i.OpenAiVectorizerTextEmbeddingAda002 != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbeddingAda002(i.OpenAiVectorizerTextEmbeddingAda002)
 	}
-	if i.IntfloatMultilingualE5Large != nil {
-		return visitor.VisitIntfloatMultilingualE5Large(i.IntfloatMultilingualE5Large)
+	if i.BasicVectorizerIntfloatMultilingualE5Large != nil {
+		return visitor.VisitBasicVectorizerIntfloatMultilingualE5Large(i.BasicVectorizerIntfloatMultilingualE5Large)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseCosV1 != nil {
-		return visitor.VisitSentenceTransformersMultiQaMpnetBaseCosV1(i.SentenceTransformersMultiQaMpnetBaseCosV1)
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1 != nil {
+		return visitor.VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseDotV1 != nil {
-		return visitor.VisitSentenceTransformersMultiQaMpnetBaseDotV1(i.SentenceTransformersMultiQaMpnetBaseDotV1)
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1 != nil {
+		return visitor.VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1)
 	}
-	if i.HkunlpInstructorXl != nil {
-		return visitor.VisitHkunlpInstructorXl(i.HkunlpInstructorXl)
+	if i.HkunlpInstructorXlVectorizer != nil {
+		return visitor.VisitHkunlpInstructorXlVectorizer(i.HkunlpInstructorXlVectorizer)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", i)
+	return fmt.Errorf("type %T does not include a non-empty union type", i)
 }
 
 type IndexingConfigVectorizerRequest struct {
-	ModelName                                 string
-	TextEmbedding3Small                       *OpenAiVectorizerTextEmbedding3SmallRequest
-	TextEmbedding3Large                       *OpenAiVectorizerTextEmbedding3LargeRequest
-	TextEmbeddingAda002                       *OpenAiVectorizerTextEmbeddingAda002Request
-	IntfloatMultilingualE5Large               *BasicVectorizerIntfloatMultilingualE5LargeRequest
-	SentenceTransformersMultiQaMpnetBaseCosV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
-	SentenceTransformersMultiQaMpnetBaseDotV1 *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
-	HkunlpInstructorXl                        *HkunlpInstructorXlVectorizerRequest
+	OpenAiVectorizerTextEmbedding3SmallRequest                      *OpenAiVectorizerTextEmbedding3SmallRequest
+	OpenAiVectorizerTextEmbedding3LargeRequest                      *OpenAiVectorizerTextEmbedding3LargeRequest
+	OpenAiVectorizerTextEmbeddingAda002Request                      *OpenAiVectorizerTextEmbeddingAda002Request
+	BasicVectorizerIntfloatMultilingualE5LargeRequest               *BasicVectorizerIntfloatMultilingualE5LargeRequest
+	BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request *BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
+	BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request *BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
+	HkunlpInstructorXlVectorizerRequest                             *HkunlpInstructorXlVectorizerRequest
 }
 
 func (i *IndexingConfigVectorizerRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		ModelName string `json:"model_name"`
+	valueOpenAiVectorizerTextEmbedding3SmallRequest := new(OpenAiVectorizerTextEmbedding3SmallRequest)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbedding3SmallRequest); err == nil {
+		i.OpenAiVectorizerTextEmbedding3SmallRequest = valueOpenAiVectorizerTextEmbedding3SmallRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueOpenAiVectorizerTextEmbedding3LargeRequest := new(OpenAiVectorizerTextEmbedding3LargeRequest)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbedding3LargeRequest); err == nil {
+		i.OpenAiVectorizerTextEmbedding3LargeRequest = valueOpenAiVectorizerTextEmbedding3LargeRequest
+		return nil
 	}
-	i.ModelName = unmarshaler.ModelName
-	switch unmarshaler.ModelName {
-	case "text-embedding-3-small":
-		value := new(OpenAiVectorizerTextEmbedding3SmallRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbedding3Small = value
-	case "text-embedding-3-large":
-		value := new(OpenAiVectorizerTextEmbedding3LargeRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbedding3Large = value
-	case "text-embedding-ada-002":
-		value := new(OpenAiVectorizerTextEmbeddingAda002Request)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.TextEmbeddingAda002 = value
-	case "intfloat/multilingual-e5-large":
-		value := new(BasicVectorizerIntfloatMultilingualE5LargeRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.IntfloatMultilingualE5Large = value
-	case "sentence-transformers/multi-qa-mpnet-base-cos-v1":
-		value := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.SentenceTransformersMultiQaMpnetBaseCosV1 = value
-	case "sentence-transformers/multi-qa-mpnet-base-dot-v1":
-		value := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.SentenceTransformersMultiQaMpnetBaseDotV1 = value
-	case "hkunlp/instructor-xl":
-		value := new(HkunlpInstructorXlVectorizerRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		i.HkunlpInstructorXl = value
+	valueOpenAiVectorizerTextEmbeddingAda002Request := new(OpenAiVectorizerTextEmbeddingAda002Request)
+	if err := json.Unmarshal(data, &valueOpenAiVectorizerTextEmbeddingAda002Request); err == nil {
+		i.OpenAiVectorizerTextEmbeddingAda002Request = valueOpenAiVectorizerTextEmbeddingAda002Request
+		return nil
 	}
-	return nil
+	valueBasicVectorizerIntfloatMultilingualE5LargeRequest := new(BasicVectorizerIntfloatMultilingualE5LargeRequest)
+	if err := json.Unmarshal(data, &valueBasicVectorizerIntfloatMultilingualE5LargeRequest); err == nil {
+		i.BasicVectorizerIntfloatMultilingualE5LargeRequest = valueBasicVectorizerIntfloatMultilingualE5LargeRequest
+		return nil
+	}
+	valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request)
+	if err := json.Unmarshal(data, &valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request); err == nil {
+		i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request = valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request
+		return nil
+	}
+	valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request := new(BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request)
+	if err := json.Unmarshal(data, &valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request); err == nil {
+		i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request = valueBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request
+		return nil
+	}
+	valueHkunlpInstructorXlVectorizerRequest := new(HkunlpInstructorXlVectorizerRequest)
+	if err := json.Unmarshal(data, &valueHkunlpInstructorXlVectorizerRequest); err == nil {
+		i.HkunlpInstructorXlVectorizerRequest = valueHkunlpInstructorXlVectorizerRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, i)
 }
 
 func (i IndexingConfigVectorizerRequest) MarshalJSON() ([]byte, error) {
-	if i.TextEmbedding3Small != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbedding3Small, "model_name", "text-embedding-3-small")
+	if i.OpenAiVectorizerTextEmbedding3SmallRequest != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbedding3SmallRequest)
 	}
-	if i.TextEmbedding3Large != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbedding3Large, "model_name", "text-embedding-3-large")
+	if i.OpenAiVectorizerTextEmbedding3LargeRequest != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbedding3LargeRequest)
 	}
-	if i.TextEmbeddingAda002 != nil {
-		return core.MarshalJSONWithExtraProperty(i.TextEmbeddingAda002, "model_name", "text-embedding-ada-002")
+	if i.OpenAiVectorizerTextEmbeddingAda002Request != nil {
+		return json.Marshal(i.OpenAiVectorizerTextEmbeddingAda002Request)
 	}
-	if i.IntfloatMultilingualE5Large != nil {
-		return core.MarshalJSONWithExtraProperty(i.IntfloatMultilingualE5Large, "model_name", "intfloat/multilingual-e5-large")
+	if i.BasicVectorizerIntfloatMultilingualE5LargeRequest != nil {
+		return json.Marshal(i.BasicVectorizerIntfloatMultilingualE5LargeRequest)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseCosV1 != nil {
-		return core.MarshalJSONWithExtraProperty(i.SentenceTransformersMultiQaMpnetBaseCosV1, "model_name", "sentence-transformers/multi-qa-mpnet-base-cos-v1")
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request != nil {
+		return json.Marshal(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseDotV1 != nil {
-		return core.MarshalJSONWithExtraProperty(i.SentenceTransformersMultiQaMpnetBaseDotV1, "model_name", "sentence-transformers/multi-qa-mpnet-base-dot-v1")
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request != nil {
+		return json.Marshal(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request)
 	}
-	if i.HkunlpInstructorXl != nil {
-		return core.MarshalJSONWithExtraProperty(i.HkunlpInstructorXl, "model_name", "hkunlp/instructor-xl")
+	if i.HkunlpInstructorXlVectorizerRequest != nil {
+		return json.Marshal(i.HkunlpInstructorXlVectorizerRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", i)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", i)
 }
 
 type IndexingConfigVectorizerRequestVisitor interface {
-	VisitTextEmbedding3Small(*OpenAiVectorizerTextEmbedding3SmallRequest) error
-	VisitTextEmbedding3Large(*OpenAiVectorizerTextEmbedding3LargeRequest) error
-	VisitTextEmbeddingAda002(*OpenAiVectorizerTextEmbeddingAda002Request) error
-	VisitIntfloatMultilingualE5Large(*BasicVectorizerIntfloatMultilingualE5LargeRequest) error
-	VisitSentenceTransformersMultiQaMpnetBaseCosV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) error
-	VisitSentenceTransformersMultiQaMpnetBaseDotV1(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) error
-	VisitHkunlpInstructorXl(*HkunlpInstructorXlVectorizerRequest) error
+	VisitOpenAiVectorizerTextEmbedding3SmallRequest(*OpenAiVectorizerTextEmbedding3SmallRequest) error
+	VisitOpenAiVectorizerTextEmbedding3LargeRequest(*OpenAiVectorizerTextEmbedding3LargeRequest) error
+	VisitOpenAiVectorizerTextEmbeddingAda002Request(*OpenAiVectorizerTextEmbeddingAda002Request) error
+	VisitBasicVectorizerIntfloatMultilingualE5LargeRequest(*BasicVectorizerIntfloatMultilingualE5LargeRequest) error
+	VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request) error
+	VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request(*BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request) error
+	VisitHkunlpInstructorXlVectorizerRequest(*HkunlpInstructorXlVectorizerRequest) error
 }
 
 func (i *IndexingConfigVectorizerRequest) Accept(visitor IndexingConfigVectorizerRequestVisitor) error {
-	if i.TextEmbedding3Small != nil {
-		return visitor.VisitTextEmbedding3Small(i.TextEmbedding3Small)
+	if i.OpenAiVectorizerTextEmbedding3SmallRequest != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbedding3SmallRequest(i.OpenAiVectorizerTextEmbedding3SmallRequest)
 	}
-	if i.TextEmbedding3Large != nil {
-		return visitor.VisitTextEmbedding3Large(i.TextEmbedding3Large)
+	if i.OpenAiVectorizerTextEmbedding3LargeRequest != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbedding3LargeRequest(i.OpenAiVectorizerTextEmbedding3LargeRequest)
 	}
-	if i.TextEmbeddingAda002 != nil {
-		return visitor.VisitTextEmbeddingAda002(i.TextEmbeddingAda002)
+	if i.OpenAiVectorizerTextEmbeddingAda002Request != nil {
+		return visitor.VisitOpenAiVectorizerTextEmbeddingAda002Request(i.OpenAiVectorizerTextEmbeddingAda002Request)
 	}
-	if i.IntfloatMultilingualE5Large != nil {
-		return visitor.VisitIntfloatMultilingualE5Large(i.IntfloatMultilingualE5Large)
+	if i.BasicVectorizerIntfloatMultilingualE5LargeRequest != nil {
+		return visitor.VisitBasicVectorizerIntfloatMultilingualE5LargeRequest(i.BasicVectorizerIntfloatMultilingualE5LargeRequest)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseCosV1 != nil {
-		return visitor.VisitSentenceTransformersMultiQaMpnetBaseCosV1(i.SentenceTransformersMultiQaMpnetBaseCosV1)
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request != nil {
+		return visitor.VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseCosV1Request)
 	}
-	if i.SentenceTransformersMultiQaMpnetBaseDotV1 != nil {
-		return visitor.VisitSentenceTransformersMultiQaMpnetBaseDotV1(i.SentenceTransformersMultiQaMpnetBaseDotV1)
+	if i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request != nil {
+		return visitor.VisitBasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request(i.BasicVectorizerSentenceTransformersMultiQaMpnetBaseDotV1Request)
 	}
-	if i.HkunlpInstructorXl != nil {
-		return visitor.VisitHkunlpInstructorXl(i.HkunlpInstructorXl)
+	if i.HkunlpInstructorXlVectorizerRequest != nil {
+		return visitor.VisitHkunlpInstructorXlVectorizerRequest(i.HkunlpInstructorXlVectorizerRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", i)
+	return fmt.Errorf("type %T does not include a non-empty union type", i)
 }
 
 // - `AWAITING_PROCESSING` - Awaiting Processing
@@ -5757,6 +6771,7 @@ func (i IndexingStateEnum) Ptr() *IndexingStateEnum {
 type InitiatedExecutePromptEvent struct {
 	Meta        *InitiatedPromptExecutionMeta `json:"meta,omitempty" url:"meta,omitempty"`
 	ExecutionId string                        `json:"execution_id" url:"execution_id"`
+	state       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5766,15 +6781,28 @@ func (i *InitiatedExecutePromptEvent) GetExtraProperties() map[string]interface{
 	return i.extraProperties
 }
 
+func (i *InitiatedExecutePromptEvent) State() string {
+	return i.state
+}
+
 func (i *InitiatedExecutePromptEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler InitiatedExecutePromptEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed InitiatedExecutePromptEvent
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*i),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*i = InitiatedExecutePromptEvent(value)
+	*i = InitiatedExecutePromptEvent(unmarshaler.embed)
+	if unmarshaler.State != "INITIATED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "INITIATED", unmarshaler.State)
+	}
+	i.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "state")
 	if err != nil {
 		return err
 	}
@@ -5782,6 +6810,18 @@ func (i *InitiatedExecutePromptEvent) UnmarshalJSON(data []byte) error {
 
 	i._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (i *InitiatedExecutePromptEvent) MarshalJSON() ([]byte, error) {
+	type embed InitiatedExecutePromptEvent
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*i),
+		State: "INITIATED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (i *InitiatedExecutePromptEvent) String() string {
@@ -5850,6 +6890,7 @@ type InitiatedWorkflowNodeResultEvent struct {
 	Data              *WorkflowNodeResultData           `json:"data,omitempty" url:"data,omitempty"`
 	SourceExecutionId *string                           `json:"source_execution_id,omitempty" url:"source_execution_id,omitempty"`
 	InputValues       []*NodeInputVariableCompiledValue `json:"input_values,omitempty" url:"input_values,omitempty"`
+	state             string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -5859,11 +6900,16 @@ func (i *InitiatedWorkflowNodeResultEvent) GetExtraProperties() map[string]inter
 	return i.extraProperties
 }
 
+func (i *InitiatedWorkflowNodeResultEvent) State() string {
+	return i.state
+}
+
 func (i *InitiatedWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	type embed InitiatedWorkflowNodeResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*i),
 	}
@@ -5872,8 +6918,12 @@ func (i *InitiatedWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	}
 	*i = InitiatedWorkflowNodeResultEvent(unmarshaler.embed)
 	i.Ts = unmarshaler.Ts.TimePtr()
+	if unmarshaler.State != "INITIATED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", i, "INITIATED", unmarshaler.State)
+	}
+	i.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *i)
+	extraProperties, err := core.ExtractExtraProperties(data, *i, "state")
 	if err != nil {
 		return err
 	}
@@ -5887,10 +6937,12 @@ func (i *InitiatedWorkflowNodeResultEvent) MarshalJSON() ([]byte, error) {
 	type embed InitiatedWorkflowNodeResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*i),
 		Ts:    core.NewOptionalDateTime(i.Ts),
+		State: "INITIATED",
 	}
 	return json.Marshal(marshaler)
 }
@@ -6024,6 +7076,7 @@ type JsonInputRequest struct {
 	// The variable's name, as defined in the deployment.
 	Name  string                 `json:"name" url:"name"`
 	Value map[string]interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6033,15 +7086,28 @@ func (j *JsonInputRequest) GetExtraProperties() map[string]interface{} {
 	return j.extraProperties
 }
 
+func (j *JsonInputRequest) Type() string {
+	return j.type_
+}
+
 func (j *JsonInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler JsonInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed JsonInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*j = JsonInputRequest(value)
+	*j = JsonInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", j, "JSON", unmarshaler.Type)
+	}
+	j.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *j)
+	extraProperties, err := core.ExtractExtraProperties(data, *j, "type")
 	if err != nil {
 		return err
 	}
@@ -6049,6 +7115,18 @@ func (j *JsonInputRequest) UnmarshalJSON(data []byte) error {
 
 	j._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (j *JsonInputRequest) MarshalJSON() ([]byte, error) {
+	type embed JsonInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (j *JsonInputRequest) String() string {
@@ -6065,6 +7143,7 @@ func (j *JsonInputRequest) String() string {
 
 type JsonVariableValue struct {
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6074,15 +7153,28 @@ func (j *JsonVariableValue) GetExtraProperties() map[string]interface{} {
 	return j.extraProperties
 }
 
+func (j *JsonVariableValue) Type() string {
+	return j.type_
+}
+
 func (j *JsonVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler JsonVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed JsonVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*j = JsonVariableValue(value)
+	*j = JsonVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", j, "JSON", unmarshaler.Type)
+	}
+	j.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *j)
+	extraProperties, err := core.ExtractExtraProperties(data, *j, "type")
 	if err != nil {
 		return err
 	}
@@ -6090,6 +7182,18 @@ func (j *JsonVariableValue) UnmarshalJSON(data []byte) error {
 
 	j._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (j *JsonVariableValue) MarshalJSON() ([]byte, error) {
+	type embed JsonVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (j *JsonVariableValue) String() string {
@@ -6107,6 +7211,7 @@ func (j *JsonVariableValue) String() string {
 // A value representing a JSON object.
 type JsonVellumValue struct {
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6116,15 +7221,28 @@ func (j *JsonVellumValue) GetExtraProperties() map[string]interface{} {
 	return j.extraProperties
 }
 
+func (j *JsonVellumValue) Type() string {
+	return j.type_
+}
+
 func (j *JsonVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler JsonVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed JsonVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*j = JsonVellumValue(value)
+	*j = JsonVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", j, "JSON", unmarshaler.Type)
+	}
+	j.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *j)
+	extraProperties, err := core.ExtractExtraProperties(data, *j, "type")
 	if err != nil {
 		return err
 	}
@@ -6132,6 +7250,18 @@ func (j *JsonVellumValue) UnmarshalJSON(data []byte) error {
 
 	j._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (j *JsonVellumValue) MarshalJSON() ([]byte, error) {
+	type embed JsonVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (j *JsonVellumValue) String() string {
@@ -6149,6 +7279,7 @@ func (j *JsonVellumValue) String() string {
 // A value representing a JSON object.
 type JsonVellumValueRequest struct {
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6158,15 +7289,28 @@ func (j *JsonVellumValueRequest) GetExtraProperties() map[string]interface{} {
 	return j.extraProperties
 }
 
+func (j *JsonVellumValueRequest) Type() string {
+	return j.type_
+}
+
 func (j *JsonVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler JsonVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed JsonVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*j = JsonVellumValueRequest(value)
+	*j = JsonVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", j, "JSON", unmarshaler.Type)
+	}
+	j.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *j)
+	extraProperties, err := core.ExtractExtraProperties(data, *j, "type")
 	if err != nil {
 		return err
 	}
@@ -6174,6 +7318,18 @@ func (j *JsonVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	j._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (j *JsonVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed JsonVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*j),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (j *JsonVellumValueRequest) String() string {
@@ -6320,7 +7476,8 @@ func (l LogprobsEnum) Ptr() *LogprobsEnum {
 
 // A Node Result Event emitted from a Map Node.
 type MapNodeResult struct {
-	Data *MapNodeResultData `json:"data,omitempty" url:"data,omitempty"`
+	Data  *MapNodeResultData `json:"data,omitempty" url:"data,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6330,15 +7487,28 @@ func (m *MapNodeResult) GetExtraProperties() map[string]interface{} {
 	return m.extraProperties
 }
 
+func (m *MapNodeResult) Type() string {
+	return m.type_
+}
+
 func (m *MapNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler MapNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed MapNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*m = MapNodeResult(value)
+	*m = MapNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "MAP" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", m, "MAP", unmarshaler.Type)
+	}
+	m.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *m)
+	extraProperties, err := core.ExtractExtraProperties(data, *m, "type")
 	if err != nil {
 		return err
 	}
@@ -6346,6 +7516,18 @@ func (m *MapNodeResult) UnmarshalJSON(data []byte) error {
 
 	m._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (m *MapNodeResult) MarshalJSON() ([]byte, error) {
+	type embed MapNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+		Type:  "MAP",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (m *MapNodeResult) String() string {
@@ -6404,7 +7586,8 @@ func (m *MapNodeResultData) String() string {
 
 // A Node Result Event emitted from a Merge Node.
 type MergeNodeResult struct {
-	Data *MergeNodeResultData `json:"data" url:"data"`
+	Data  *MergeNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -6414,15 +7597,28 @@ func (m *MergeNodeResult) GetExtraProperties() map[string]interface{} {
 	return m.extraProperties
 }
 
+func (m *MergeNodeResult) Type() string {
+	return m.type_
+}
+
 func (m *MergeNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler MergeNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed MergeNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*m = MergeNodeResult(value)
+	*m = MergeNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "MERGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", m, "MERGE", unmarshaler.Type)
+	}
+	m.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *m)
+	extraProperties, err := core.ExtractExtraProperties(data, *m, "type")
 	if err != nil {
 		return err
 	}
@@ -6430,6 +7626,18 @@ func (m *MergeNodeResult) UnmarshalJSON(data []byte) error {
 
 	m._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (m *MergeNodeResult) MarshalJSON() ([]byte, error) {
+	type embed MergeNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+		Type:  "MERGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (m *MergeNodeResult) String() string {
@@ -6603,6 +7811,8 @@ func (m *MetadataFilterRuleRequest) String() string {
 
 // A Node Result Event emitted from a Metric Node.
 type MetricNodeResult struct {
+	type_ string
+
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
 }
@@ -6611,15 +7821,28 @@ func (m *MetricNodeResult) GetExtraProperties() map[string]interface{} {
 	return m.extraProperties
 }
 
+func (m *MetricNodeResult) Type() string {
+	return m.type_
+}
+
 func (m *MetricNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler MetricNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed MetricNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*m = MetricNodeResult(value)
+	*m = MetricNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "METRIC" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", m, "METRIC", unmarshaler.Type)
+	}
+	m.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *m)
+	extraProperties, err := core.ExtractExtraProperties(data, *m, "type")
 	if err != nil {
 		return err
 	}
@@ -6627,6 +7850,18 @@ func (m *MetricNodeResult) UnmarshalJSON(data []byte) error {
 
 	m._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (m *MetricNodeResult) MarshalJSON() ([]byte, error) {
+	type embed MetricNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*m),
+		Type:  "METRIC",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (m *MetricNodeResult) String() string {
@@ -7697,115 +8932,91 @@ func (m *MlModelResponseConfigRequest) String() string {
 }
 
 type MlModelTokenizerConfig struct {
-	Type        string
-	HuggingFace *HuggingFaceTokenizerConfig
-	Tiktoken    *TikTokenTokenizerConfig
+	HuggingFaceTokenizerConfig *HuggingFaceTokenizerConfig
+	TikTokenTokenizerConfig    *TikTokenTokenizerConfig
 }
 
 func (m *MlModelTokenizerConfig) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueHuggingFaceTokenizerConfig := new(HuggingFaceTokenizerConfig)
+	if err := json.Unmarshal(data, &valueHuggingFaceTokenizerConfig); err == nil {
+		m.HuggingFaceTokenizerConfig = valueHuggingFaceTokenizerConfig
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTikTokenTokenizerConfig := new(TikTokenTokenizerConfig)
+	if err := json.Unmarshal(data, &valueTikTokenTokenizerConfig); err == nil {
+		m.TikTokenTokenizerConfig = valueTikTokenTokenizerConfig
+		return nil
 	}
-	m.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "HUGGING_FACE":
-		value := new(HuggingFaceTokenizerConfig)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		m.HuggingFace = value
-	case "TIKTOKEN":
-		value := new(TikTokenTokenizerConfig)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		m.Tiktoken = value
-	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, m)
 }
 
 func (m MlModelTokenizerConfig) MarshalJSON() ([]byte, error) {
-	if m.HuggingFace != nil {
-		return core.MarshalJSONWithExtraProperty(m.HuggingFace, "type", "HUGGING_FACE")
+	if m.HuggingFaceTokenizerConfig != nil {
+		return json.Marshal(m.HuggingFaceTokenizerConfig)
 	}
-	if m.Tiktoken != nil {
-		return core.MarshalJSONWithExtraProperty(m.Tiktoken, "type", "TIKTOKEN")
+	if m.TikTokenTokenizerConfig != nil {
+		return json.Marshal(m.TikTokenTokenizerConfig)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", m)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", m)
 }
 
 type MlModelTokenizerConfigVisitor interface {
-	VisitHuggingFace(*HuggingFaceTokenizerConfig) error
-	VisitTiktoken(*TikTokenTokenizerConfig) error
+	VisitHuggingFaceTokenizerConfig(*HuggingFaceTokenizerConfig) error
+	VisitTikTokenTokenizerConfig(*TikTokenTokenizerConfig) error
 }
 
 func (m *MlModelTokenizerConfig) Accept(visitor MlModelTokenizerConfigVisitor) error {
-	if m.HuggingFace != nil {
-		return visitor.VisitHuggingFace(m.HuggingFace)
+	if m.HuggingFaceTokenizerConfig != nil {
+		return visitor.VisitHuggingFaceTokenizerConfig(m.HuggingFaceTokenizerConfig)
 	}
-	if m.Tiktoken != nil {
-		return visitor.VisitTiktoken(m.Tiktoken)
+	if m.TikTokenTokenizerConfig != nil {
+		return visitor.VisitTikTokenTokenizerConfig(m.TikTokenTokenizerConfig)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", m)
+	return fmt.Errorf("type %T does not include a non-empty union type", m)
 }
 
 type MlModelTokenizerConfigRequest struct {
-	Type        string
-	HuggingFace *HuggingFaceTokenizerConfigRequest
-	Tiktoken    *TikTokenTokenizerConfigRequest
+	HuggingFaceTokenizerConfigRequest *HuggingFaceTokenizerConfigRequest
+	TikTokenTokenizerConfigRequest    *TikTokenTokenizerConfigRequest
 }
 
 func (m *MlModelTokenizerConfigRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueHuggingFaceTokenizerConfigRequest := new(HuggingFaceTokenizerConfigRequest)
+	if err := json.Unmarshal(data, &valueHuggingFaceTokenizerConfigRequest); err == nil {
+		m.HuggingFaceTokenizerConfigRequest = valueHuggingFaceTokenizerConfigRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTikTokenTokenizerConfigRequest := new(TikTokenTokenizerConfigRequest)
+	if err := json.Unmarshal(data, &valueTikTokenTokenizerConfigRequest); err == nil {
+		m.TikTokenTokenizerConfigRequest = valueTikTokenTokenizerConfigRequest
+		return nil
 	}
-	m.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "HUGGING_FACE":
-		value := new(HuggingFaceTokenizerConfigRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		m.HuggingFace = value
-	case "TIKTOKEN":
-		value := new(TikTokenTokenizerConfigRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		m.Tiktoken = value
-	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, m)
 }
 
 func (m MlModelTokenizerConfigRequest) MarshalJSON() ([]byte, error) {
-	if m.HuggingFace != nil {
-		return core.MarshalJSONWithExtraProperty(m.HuggingFace, "type", "HUGGING_FACE")
+	if m.HuggingFaceTokenizerConfigRequest != nil {
+		return json.Marshal(m.HuggingFaceTokenizerConfigRequest)
 	}
-	if m.Tiktoken != nil {
-		return core.MarshalJSONWithExtraProperty(m.Tiktoken, "type", "TIKTOKEN")
+	if m.TikTokenTokenizerConfigRequest != nil {
+		return json.Marshal(m.TikTokenTokenizerConfigRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", m)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", m)
 }
 
 type MlModelTokenizerConfigRequestVisitor interface {
-	VisitHuggingFace(*HuggingFaceTokenizerConfigRequest) error
-	VisitTiktoken(*TikTokenTokenizerConfigRequest) error
+	VisitHuggingFaceTokenizerConfigRequest(*HuggingFaceTokenizerConfigRequest) error
+	VisitTikTokenTokenizerConfigRequest(*TikTokenTokenizerConfigRequest) error
 }
 
 func (m *MlModelTokenizerConfigRequest) Accept(visitor MlModelTokenizerConfigRequestVisitor) error {
-	if m.HuggingFace != nil {
-		return visitor.VisitHuggingFace(m.HuggingFace)
+	if m.HuggingFaceTokenizerConfigRequest != nil {
+		return visitor.VisitHuggingFaceTokenizerConfigRequest(m.HuggingFaceTokenizerConfigRequest)
 	}
-	if m.Tiktoken != nil {
-		return visitor.VisitTiktoken(m.Tiktoken)
+	if m.TikTokenTokenizerConfigRequest != nil {
+		return visitor.VisitTikTokenTokenizerConfigRequest(m.TikTokenTokenizerConfigRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", m)
+	return fmt.Errorf("type %T does not include a non-empty union type", m)
 }
 
 type MlModelUsage struct {
@@ -7857,6 +9068,7 @@ func (m *MlModelUsage) String() string {
 type NamedScenarioInputChatHistoryVariableValueRequest struct {
 	Value []*ChatMessageRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string                `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -7866,15 +9078,28 @@ func (n *NamedScenarioInputChatHistoryVariableValueRequest) GetExtraProperties()
 	return n.extraProperties
 }
 
+func (n *NamedScenarioInputChatHistoryVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedScenarioInputChatHistoryVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedScenarioInputChatHistoryVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedScenarioInputChatHistoryVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedScenarioInputChatHistoryVariableValueRequest(value)
+	*n = NamedScenarioInputChatHistoryVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -7882,6 +9107,18 @@ func (n *NamedScenarioInputChatHistoryVariableValueRequest) UnmarshalJSON(data [
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedScenarioInputChatHistoryVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedScenarioInputChatHistoryVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedScenarioInputChatHistoryVariableValueRequest) String() string {
@@ -7900,6 +9137,7 @@ func (n *NamedScenarioInputChatHistoryVariableValueRequest) String() string {
 type NamedScenarioInputJsonVariableValueRequest struct {
 	Value interface{} `json:"value" url:"value"`
 	Name  string      `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -7909,15 +9147,28 @@ func (n *NamedScenarioInputJsonVariableValueRequest) GetExtraProperties() map[st
 	return n.extraProperties
 }
 
+func (n *NamedScenarioInputJsonVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedScenarioInputJsonVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedScenarioInputJsonVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedScenarioInputJsonVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedScenarioInputJsonVariableValueRequest(value)
+	*n = NamedScenarioInputJsonVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "JSON", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -7925,6 +9176,18 @@ func (n *NamedScenarioInputJsonVariableValueRequest) UnmarshalJSON(data []byte) 
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedScenarioInputJsonVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedScenarioInputJsonVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedScenarioInputJsonVariableValueRequest) String() string {
@@ -7940,79 +9203,67 @@ func (n *NamedScenarioInputJsonVariableValueRequest) String() string {
 }
 
 type NamedScenarioInputRequest struct {
-	Type        string
-	String      *NamedScenarioInputStringVariableValueRequest
-	Json        *NamedScenarioInputJsonVariableValueRequest
-	ChatHistory *NamedScenarioInputChatHistoryVariableValueRequest
+	NamedScenarioInputStringVariableValueRequest      *NamedScenarioInputStringVariableValueRequest
+	NamedScenarioInputJsonVariableValueRequest        *NamedScenarioInputJsonVariableValueRequest
+	NamedScenarioInputChatHistoryVariableValueRequest *NamedScenarioInputChatHistoryVariableValueRequest
 }
 
 func (n *NamedScenarioInputRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueNamedScenarioInputStringVariableValueRequest := new(NamedScenarioInputStringVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedScenarioInputStringVariableValueRequest); err == nil {
+		n.NamedScenarioInputStringVariableValueRequest = valueNamedScenarioInputStringVariableValueRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNamedScenarioInputJsonVariableValueRequest := new(NamedScenarioInputJsonVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedScenarioInputJsonVariableValueRequest); err == nil {
+		n.NamedScenarioInputJsonVariableValueRequest = valueNamedScenarioInputJsonVariableValueRequest
+		return nil
 	}
-	n.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(NamedScenarioInputStringVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.String = value
-	case "JSON":
-		value := new(NamedScenarioInputJsonVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Json = value
-	case "CHAT_HISTORY":
-		value := new(NamedScenarioInputChatHistoryVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.ChatHistory = value
+	valueNamedScenarioInputChatHistoryVariableValueRequest := new(NamedScenarioInputChatHistoryVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedScenarioInputChatHistoryVariableValueRequest); err == nil {
+		n.NamedScenarioInputChatHistoryVariableValueRequest = valueNamedScenarioInputChatHistoryVariableValueRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, n)
 }
 
 func (n NamedScenarioInputRequest) MarshalJSON() ([]byte, error) {
-	if n.String != nil {
-		return core.MarshalJSONWithExtraProperty(n.String, "type", "STRING")
+	if n.NamedScenarioInputStringVariableValueRequest != nil {
+		return json.Marshal(n.NamedScenarioInputStringVariableValueRequest)
 	}
-	if n.Json != nil {
-		return core.MarshalJSONWithExtraProperty(n.Json, "type", "JSON")
+	if n.NamedScenarioInputJsonVariableValueRequest != nil {
+		return json.Marshal(n.NamedScenarioInputJsonVariableValueRequest)
 	}
-	if n.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(n.ChatHistory, "type", "CHAT_HISTORY")
+	if n.NamedScenarioInputChatHistoryVariableValueRequest != nil {
+		return json.Marshal(n.NamedScenarioInputChatHistoryVariableValueRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", n)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NamedScenarioInputRequestVisitor interface {
-	VisitString(*NamedScenarioInputStringVariableValueRequest) error
-	VisitJson(*NamedScenarioInputJsonVariableValueRequest) error
-	VisitChatHistory(*NamedScenarioInputChatHistoryVariableValueRequest) error
+	VisitNamedScenarioInputStringVariableValueRequest(*NamedScenarioInputStringVariableValueRequest) error
+	VisitNamedScenarioInputJsonVariableValueRequest(*NamedScenarioInputJsonVariableValueRequest) error
+	VisitNamedScenarioInputChatHistoryVariableValueRequest(*NamedScenarioInputChatHistoryVariableValueRequest) error
 }
 
 func (n *NamedScenarioInputRequest) Accept(visitor NamedScenarioInputRequestVisitor) error {
-	if n.String != nil {
-		return visitor.VisitString(n.String)
+	if n.NamedScenarioInputStringVariableValueRequest != nil {
+		return visitor.VisitNamedScenarioInputStringVariableValueRequest(n.NamedScenarioInputStringVariableValueRequest)
 	}
-	if n.Json != nil {
-		return visitor.VisitJson(n.Json)
+	if n.NamedScenarioInputJsonVariableValueRequest != nil {
+		return visitor.VisitNamedScenarioInputJsonVariableValueRequest(n.NamedScenarioInputJsonVariableValueRequest)
 	}
-	if n.ChatHistory != nil {
-		return visitor.VisitChatHistory(n.ChatHistory)
+	if n.NamedScenarioInputChatHistoryVariableValueRequest != nil {
+		return visitor.VisitNamedScenarioInputChatHistoryVariableValueRequest(n.NamedScenarioInputChatHistoryVariableValueRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", n)
+	return fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 // Named Prompt Sandbox Scenario input value that is of type STRING
 type NamedScenarioInputStringVariableValueRequest struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
 	Name  string  `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8022,15 +9273,28 @@ func (n *NamedScenarioInputStringVariableValueRequest) GetExtraProperties() map[
 	return n.extraProperties
 }
 
+func (n *NamedScenarioInputStringVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedScenarioInputStringVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedScenarioInputStringVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedScenarioInputStringVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedScenarioInputStringVariableValueRequest(value)
+	*n = NamedScenarioInputStringVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "STRING", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8038,6 +9302,18 @@ func (n *NamedScenarioInputStringVariableValueRequest) UnmarshalJSON(data []byte
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedScenarioInputStringVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedScenarioInputStringVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedScenarioInputStringVariableValueRequest) String() string {
@@ -8056,6 +9332,7 @@ func (n *NamedScenarioInputStringVariableValueRequest) String() string {
 type NamedTestCaseArrayVariableValue struct {
 	Value []*ArrayVellumValueItem `json:"value,omitempty" url:"value,omitempty"`
 	Name  string                  `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8065,15 +9342,28 @@ func (n *NamedTestCaseArrayVariableValue) GetExtraProperties() map[string]interf
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseArrayVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseArrayVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseArrayVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseArrayVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseArrayVariableValue(value)
+	*n = NamedTestCaseArrayVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ARRAY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8081,6 +9371,18 @@ func (n *NamedTestCaseArrayVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseArrayVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseArrayVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseArrayVariableValue) String() string {
@@ -8099,6 +9401,7 @@ func (n *NamedTestCaseArrayVariableValue) String() string {
 type NamedTestCaseArrayVariableValueRequest struct {
 	Value []*ArrayVellumValueItemRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string                         `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8108,15 +9411,28 @@ func (n *NamedTestCaseArrayVariableValueRequest) GetExtraProperties() map[string
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseArrayVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseArrayVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseArrayVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseArrayVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseArrayVariableValueRequest(value)
+	*n = NamedTestCaseArrayVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ARRAY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8124,6 +9440,18 @@ func (n *NamedTestCaseArrayVariableValueRequest) UnmarshalJSON(data []byte) erro
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseArrayVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseArrayVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseArrayVariableValueRequest) String() string {
@@ -8142,6 +9470,7 @@ func (n *NamedTestCaseArrayVariableValueRequest) String() string {
 type NamedTestCaseChatHistoryVariableValue struct {
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
 	Name  string         `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8151,15 +9480,28 @@ func (n *NamedTestCaseChatHistoryVariableValue) GetExtraProperties() map[string]
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseChatHistoryVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseChatHistoryVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseChatHistoryVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseChatHistoryVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseChatHistoryVariableValue(value)
+	*n = NamedTestCaseChatHistoryVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8167,6 +9509,18 @@ func (n *NamedTestCaseChatHistoryVariableValue) UnmarshalJSON(data []byte) error
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseChatHistoryVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseChatHistoryVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseChatHistoryVariableValue) String() string {
@@ -8185,6 +9539,7 @@ func (n *NamedTestCaseChatHistoryVariableValue) String() string {
 type NamedTestCaseChatHistoryVariableValueRequest struct {
 	Value []*ChatMessageRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string                `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8194,15 +9549,28 @@ func (n *NamedTestCaseChatHistoryVariableValueRequest) GetExtraProperties() map[
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseChatHistoryVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseChatHistoryVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseChatHistoryVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseChatHistoryVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseChatHistoryVariableValueRequest(value)
+	*n = NamedTestCaseChatHistoryVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8210,6 +9578,18 @@ func (n *NamedTestCaseChatHistoryVariableValueRequest) UnmarshalJSON(data []byte
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseChatHistoryVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseChatHistoryVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseChatHistoryVariableValueRequest) String() string {
@@ -8228,6 +9608,7 @@ func (n *NamedTestCaseChatHistoryVariableValueRequest) String() string {
 type NamedTestCaseErrorVariableValue struct {
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
 	Name  string       `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8237,15 +9618,28 @@ func (n *NamedTestCaseErrorVariableValue) GetExtraProperties() map[string]interf
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseErrorVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseErrorVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseErrorVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseErrorVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseErrorVariableValue(value)
+	*n = NamedTestCaseErrorVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ERROR", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8253,6 +9647,18 @@ func (n *NamedTestCaseErrorVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseErrorVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseErrorVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseErrorVariableValue) String() string {
@@ -8271,6 +9677,7 @@ func (n *NamedTestCaseErrorVariableValue) String() string {
 type NamedTestCaseErrorVariableValueRequest struct {
 	Value *VellumErrorRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string              `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8280,15 +9687,28 @@ func (n *NamedTestCaseErrorVariableValueRequest) GetExtraProperties() map[string
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseErrorVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseErrorVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseErrorVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseErrorVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseErrorVariableValueRequest(value)
+	*n = NamedTestCaseErrorVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ERROR", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8296,6 +9716,18 @@ func (n *NamedTestCaseErrorVariableValueRequest) UnmarshalJSON(data []byte) erro
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseErrorVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseErrorVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseErrorVariableValueRequest) String() string {
@@ -8314,6 +9746,7 @@ func (n *NamedTestCaseErrorVariableValueRequest) String() string {
 type NamedTestCaseFunctionCallVariableValue struct {
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
 	Name  string        `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8323,15 +9756,28 @@ func (n *NamedTestCaseFunctionCallVariableValue) GetExtraProperties() map[string
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseFunctionCallVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseFunctionCallVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseFunctionCallVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseFunctionCallVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseFunctionCallVariableValue(value)
+	*n = NamedTestCaseFunctionCallVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8339,6 +9785,18 @@ func (n *NamedTestCaseFunctionCallVariableValue) UnmarshalJSON(data []byte) erro
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseFunctionCallVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseFunctionCallVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseFunctionCallVariableValue) String() string {
@@ -8357,6 +9815,7 @@ func (n *NamedTestCaseFunctionCallVariableValue) String() string {
 type NamedTestCaseFunctionCallVariableValueRequest struct {
 	Value *FunctionCallRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string               `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8366,15 +9825,28 @@ func (n *NamedTestCaseFunctionCallVariableValueRequest) GetExtraProperties() map
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseFunctionCallVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseFunctionCallVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseFunctionCallVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseFunctionCallVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseFunctionCallVariableValueRequest(value)
+	*n = NamedTestCaseFunctionCallVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8382,6 +9854,18 @@ func (n *NamedTestCaseFunctionCallVariableValueRequest) UnmarshalJSON(data []byt
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseFunctionCallVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseFunctionCallVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseFunctionCallVariableValueRequest) String() string {
@@ -8400,6 +9884,7 @@ func (n *NamedTestCaseFunctionCallVariableValueRequest) String() string {
 type NamedTestCaseJsonVariableValue struct {
 	Value interface{} `json:"value" url:"value"`
 	Name  string      `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8409,15 +9894,28 @@ func (n *NamedTestCaseJsonVariableValue) GetExtraProperties() map[string]interfa
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseJsonVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseJsonVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseJsonVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseJsonVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseJsonVariableValue(value)
+	*n = NamedTestCaseJsonVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "JSON", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8425,6 +9923,18 @@ func (n *NamedTestCaseJsonVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseJsonVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseJsonVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseJsonVariableValue) String() string {
@@ -8443,6 +9953,7 @@ func (n *NamedTestCaseJsonVariableValue) String() string {
 type NamedTestCaseJsonVariableValueRequest struct {
 	Value interface{} `json:"value" url:"value"`
 	Name  string      `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8452,15 +9963,28 @@ func (n *NamedTestCaseJsonVariableValueRequest) GetExtraProperties() map[string]
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseJsonVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseJsonVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseJsonVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseJsonVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseJsonVariableValueRequest(value)
+	*n = NamedTestCaseJsonVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "JSON", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8468,6 +9992,18 @@ func (n *NamedTestCaseJsonVariableValueRequest) UnmarshalJSON(data []byte) error
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseJsonVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseJsonVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseJsonVariableValueRequest) String() string {
@@ -8486,6 +10022,7 @@ func (n *NamedTestCaseJsonVariableValueRequest) String() string {
 type NamedTestCaseNumberVariableValue struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
 	Name  string   `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8495,15 +10032,28 @@ func (n *NamedTestCaseNumberVariableValue) GetExtraProperties() map[string]inter
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseNumberVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseNumberVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseNumberVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseNumberVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseNumberVariableValue(value)
+	*n = NamedTestCaseNumberVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8511,6 +10061,18 @@ func (n *NamedTestCaseNumberVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseNumberVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseNumberVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseNumberVariableValue) String() string {
@@ -8529,6 +10091,7 @@ func (n *NamedTestCaseNumberVariableValue) String() string {
 type NamedTestCaseNumberVariableValueRequest struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
 	Name  string   `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8538,15 +10101,28 @@ func (n *NamedTestCaseNumberVariableValueRequest) GetExtraProperties() map[strin
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseNumberVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseNumberVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseNumberVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseNumberVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseNumberVariableValueRequest(value)
+	*n = NamedTestCaseNumberVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8554,6 +10130,18 @@ func (n *NamedTestCaseNumberVariableValueRequest) UnmarshalJSON(data []byte) err
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseNumberVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseNumberVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseNumberVariableValueRequest) String() string {
@@ -8572,6 +10160,7 @@ func (n *NamedTestCaseNumberVariableValueRequest) String() string {
 type NamedTestCaseSearchResultsVariableValue struct {
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
 	Name  string          `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8581,15 +10170,28 @@ func (n *NamedTestCaseSearchResultsVariableValue) GetExtraProperties() map[strin
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseSearchResultsVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseSearchResultsVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseSearchResultsVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseSearchResultsVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseSearchResultsVariableValue(value)
+	*n = NamedTestCaseSearchResultsVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8597,6 +10199,18 @@ func (n *NamedTestCaseSearchResultsVariableValue) UnmarshalJSON(data []byte) err
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseSearchResultsVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseSearchResultsVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseSearchResultsVariableValue) String() string {
@@ -8615,6 +10229,7 @@ func (n *NamedTestCaseSearchResultsVariableValue) String() string {
 type NamedTestCaseSearchResultsVariableValueRequest struct {
 	Value []*SearchResultRequest `json:"value,omitempty" url:"value,omitempty"`
 	Name  string                 `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8624,15 +10239,28 @@ func (n *NamedTestCaseSearchResultsVariableValueRequest) GetExtraProperties() ma
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseSearchResultsVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseSearchResultsVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseSearchResultsVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseSearchResultsVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseSearchResultsVariableValueRequest(value)
+	*n = NamedTestCaseSearchResultsVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8640,6 +10268,18 @@ func (n *NamedTestCaseSearchResultsVariableValueRequest) UnmarshalJSON(data []by
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseSearchResultsVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseSearchResultsVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseSearchResultsVariableValueRequest) String() string {
@@ -8658,6 +10298,7 @@ func (n *NamedTestCaseSearchResultsVariableValueRequest) String() string {
 type NamedTestCaseStringVariableValue struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
 	Name  string  `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8667,15 +10308,28 @@ func (n *NamedTestCaseStringVariableValue) GetExtraProperties() map[string]inter
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseStringVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseStringVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseStringVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseStringVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseStringVariableValue(value)
+	*n = NamedTestCaseStringVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "STRING", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8683,6 +10337,18 @@ func (n *NamedTestCaseStringVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseStringVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseStringVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseStringVariableValue) String() string {
@@ -8701,6 +10367,7 @@ func (n *NamedTestCaseStringVariableValue) String() string {
 type NamedTestCaseStringVariableValueRequest struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
 	Name  string  `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -8710,15 +10377,28 @@ func (n *NamedTestCaseStringVariableValueRequest) GetExtraProperties() map[strin
 	return n.extraProperties
 }
 
+func (n *NamedTestCaseStringVariableValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NamedTestCaseStringVariableValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NamedTestCaseStringVariableValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NamedTestCaseStringVariableValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NamedTestCaseStringVariableValueRequest(value)
+	*n = NamedTestCaseStringVariableValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "STRING", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -8726,6 +10406,18 @@ func (n *NamedTestCaseStringVariableValueRequest) UnmarshalJSON(data []byte) err
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NamedTestCaseStringVariableValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NamedTestCaseStringVariableValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NamedTestCaseStringVariableValueRequest) String() string {
@@ -8741,289 +10433,254 @@ func (n *NamedTestCaseStringVariableValueRequest) String() string {
 }
 
 type NamedTestCaseVariableValue struct {
-	Type          string
-	String        *NamedTestCaseStringVariableValue
-	Number        *NamedTestCaseNumberVariableValue
-	Json          *NamedTestCaseJsonVariableValue
-	ChatHistory   *NamedTestCaseChatHistoryVariableValue
-	SearchResults *NamedTestCaseSearchResultsVariableValue
-	Error         *NamedTestCaseErrorVariableValue
-	FunctionCall  *NamedTestCaseFunctionCallVariableValue
-	Array         *NamedTestCaseArrayVariableValue
+	NamedTestCaseStringVariableValue        *NamedTestCaseStringVariableValue
+	NamedTestCaseNumberVariableValue        *NamedTestCaseNumberVariableValue
+	NamedTestCaseJsonVariableValue          *NamedTestCaseJsonVariableValue
+	NamedTestCaseChatHistoryVariableValue   *NamedTestCaseChatHistoryVariableValue
+	NamedTestCaseSearchResultsVariableValue *NamedTestCaseSearchResultsVariableValue
+	NamedTestCaseErrorVariableValue         *NamedTestCaseErrorVariableValue
+	NamedTestCaseFunctionCallVariableValue  *NamedTestCaseFunctionCallVariableValue
+	NamedTestCaseArrayVariableValue         *NamedTestCaseArrayVariableValue
 }
 
 func (n *NamedTestCaseVariableValue) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueNamedTestCaseStringVariableValue := new(NamedTestCaseStringVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseStringVariableValue); err == nil {
+		n.NamedTestCaseStringVariableValue = valueNamedTestCaseStringVariableValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNamedTestCaseNumberVariableValue := new(NamedTestCaseNumberVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseNumberVariableValue); err == nil {
+		n.NamedTestCaseNumberVariableValue = valueNamedTestCaseNumberVariableValue
+		return nil
 	}
-	n.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(NamedTestCaseStringVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.String = value
-	case "NUMBER":
-		value := new(NamedTestCaseNumberVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Number = value
-	case "JSON":
-		value := new(NamedTestCaseJsonVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Json = value
-	case "CHAT_HISTORY":
-		value := new(NamedTestCaseChatHistoryVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(NamedTestCaseSearchResultsVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.SearchResults = value
-	case "ERROR":
-		value := new(NamedTestCaseErrorVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Error = value
-	case "FUNCTION_CALL":
-		value := new(NamedTestCaseFunctionCallVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.FunctionCall = value
-	case "ARRAY":
-		value := new(NamedTestCaseArrayVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Array = value
+	valueNamedTestCaseJsonVariableValue := new(NamedTestCaseJsonVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseJsonVariableValue); err == nil {
+		n.NamedTestCaseJsonVariableValue = valueNamedTestCaseJsonVariableValue
+		return nil
 	}
-	return nil
+	valueNamedTestCaseChatHistoryVariableValue := new(NamedTestCaseChatHistoryVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseChatHistoryVariableValue); err == nil {
+		n.NamedTestCaseChatHistoryVariableValue = valueNamedTestCaseChatHistoryVariableValue
+		return nil
+	}
+	valueNamedTestCaseSearchResultsVariableValue := new(NamedTestCaseSearchResultsVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseSearchResultsVariableValue); err == nil {
+		n.NamedTestCaseSearchResultsVariableValue = valueNamedTestCaseSearchResultsVariableValue
+		return nil
+	}
+	valueNamedTestCaseErrorVariableValue := new(NamedTestCaseErrorVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseErrorVariableValue); err == nil {
+		n.NamedTestCaseErrorVariableValue = valueNamedTestCaseErrorVariableValue
+		return nil
+	}
+	valueNamedTestCaseFunctionCallVariableValue := new(NamedTestCaseFunctionCallVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseFunctionCallVariableValue); err == nil {
+		n.NamedTestCaseFunctionCallVariableValue = valueNamedTestCaseFunctionCallVariableValue
+		return nil
+	}
+	valueNamedTestCaseArrayVariableValue := new(NamedTestCaseArrayVariableValue)
+	if err := json.Unmarshal(data, &valueNamedTestCaseArrayVariableValue); err == nil {
+		n.NamedTestCaseArrayVariableValue = valueNamedTestCaseArrayVariableValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, n)
 }
 
 func (n NamedTestCaseVariableValue) MarshalJSON() ([]byte, error) {
-	if n.String != nil {
-		return core.MarshalJSONWithExtraProperty(n.String, "type", "STRING")
+	if n.NamedTestCaseStringVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseStringVariableValue)
 	}
-	if n.Number != nil {
-		return core.MarshalJSONWithExtraProperty(n.Number, "type", "NUMBER")
+	if n.NamedTestCaseNumberVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseNumberVariableValue)
 	}
-	if n.Json != nil {
-		return core.MarshalJSONWithExtraProperty(n.Json, "type", "JSON")
+	if n.NamedTestCaseJsonVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseJsonVariableValue)
 	}
-	if n.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(n.ChatHistory, "type", "CHAT_HISTORY")
+	if n.NamedTestCaseChatHistoryVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseChatHistoryVariableValue)
 	}
-	if n.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(n.SearchResults, "type", "SEARCH_RESULTS")
+	if n.NamedTestCaseSearchResultsVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseSearchResultsVariableValue)
 	}
-	if n.Error != nil {
-		return core.MarshalJSONWithExtraProperty(n.Error, "type", "ERROR")
+	if n.NamedTestCaseErrorVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseErrorVariableValue)
 	}
-	if n.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(n.FunctionCall, "type", "FUNCTION_CALL")
+	if n.NamedTestCaseFunctionCallVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseFunctionCallVariableValue)
 	}
-	if n.Array != nil {
-		return core.MarshalJSONWithExtraProperty(n.Array, "type", "ARRAY")
+	if n.NamedTestCaseArrayVariableValue != nil {
+		return json.Marshal(n.NamedTestCaseArrayVariableValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", n)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NamedTestCaseVariableValueVisitor interface {
-	VisitString(*NamedTestCaseStringVariableValue) error
-	VisitNumber(*NamedTestCaseNumberVariableValue) error
-	VisitJson(*NamedTestCaseJsonVariableValue) error
-	VisitChatHistory(*NamedTestCaseChatHistoryVariableValue) error
-	VisitSearchResults(*NamedTestCaseSearchResultsVariableValue) error
-	VisitError(*NamedTestCaseErrorVariableValue) error
-	VisitFunctionCall(*NamedTestCaseFunctionCallVariableValue) error
-	VisitArray(*NamedTestCaseArrayVariableValue) error
+	VisitNamedTestCaseStringVariableValue(*NamedTestCaseStringVariableValue) error
+	VisitNamedTestCaseNumberVariableValue(*NamedTestCaseNumberVariableValue) error
+	VisitNamedTestCaseJsonVariableValue(*NamedTestCaseJsonVariableValue) error
+	VisitNamedTestCaseChatHistoryVariableValue(*NamedTestCaseChatHistoryVariableValue) error
+	VisitNamedTestCaseSearchResultsVariableValue(*NamedTestCaseSearchResultsVariableValue) error
+	VisitNamedTestCaseErrorVariableValue(*NamedTestCaseErrorVariableValue) error
+	VisitNamedTestCaseFunctionCallVariableValue(*NamedTestCaseFunctionCallVariableValue) error
+	VisitNamedTestCaseArrayVariableValue(*NamedTestCaseArrayVariableValue) error
 }
 
 func (n *NamedTestCaseVariableValue) Accept(visitor NamedTestCaseVariableValueVisitor) error {
-	if n.String != nil {
-		return visitor.VisitString(n.String)
+	if n.NamedTestCaseStringVariableValue != nil {
+		return visitor.VisitNamedTestCaseStringVariableValue(n.NamedTestCaseStringVariableValue)
 	}
-	if n.Number != nil {
-		return visitor.VisitNumber(n.Number)
+	if n.NamedTestCaseNumberVariableValue != nil {
+		return visitor.VisitNamedTestCaseNumberVariableValue(n.NamedTestCaseNumberVariableValue)
 	}
-	if n.Json != nil {
-		return visitor.VisitJson(n.Json)
+	if n.NamedTestCaseJsonVariableValue != nil {
+		return visitor.VisitNamedTestCaseJsonVariableValue(n.NamedTestCaseJsonVariableValue)
 	}
-	if n.ChatHistory != nil {
-		return visitor.VisitChatHistory(n.ChatHistory)
+	if n.NamedTestCaseChatHistoryVariableValue != nil {
+		return visitor.VisitNamedTestCaseChatHistoryVariableValue(n.NamedTestCaseChatHistoryVariableValue)
 	}
-	if n.SearchResults != nil {
-		return visitor.VisitSearchResults(n.SearchResults)
+	if n.NamedTestCaseSearchResultsVariableValue != nil {
+		return visitor.VisitNamedTestCaseSearchResultsVariableValue(n.NamedTestCaseSearchResultsVariableValue)
 	}
-	if n.Error != nil {
-		return visitor.VisitError(n.Error)
+	if n.NamedTestCaseErrorVariableValue != nil {
+		return visitor.VisitNamedTestCaseErrorVariableValue(n.NamedTestCaseErrorVariableValue)
 	}
-	if n.FunctionCall != nil {
-		return visitor.VisitFunctionCall(n.FunctionCall)
+	if n.NamedTestCaseFunctionCallVariableValue != nil {
+		return visitor.VisitNamedTestCaseFunctionCallVariableValue(n.NamedTestCaseFunctionCallVariableValue)
 	}
-	if n.Array != nil {
-		return visitor.VisitArray(n.Array)
+	if n.NamedTestCaseArrayVariableValue != nil {
+		return visitor.VisitNamedTestCaseArrayVariableValue(n.NamedTestCaseArrayVariableValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", n)
+	return fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NamedTestCaseVariableValueRequest struct {
-	Type          string
-	String        *NamedTestCaseStringVariableValueRequest
-	Number        *NamedTestCaseNumberVariableValueRequest
-	Json          *NamedTestCaseJsonVariableValueRequest
-	ChatHistory   *NamedTestCaseChatHistoryVariableValueRequest
-	SearchResults *NamedTestCaseSearchResultsVariableValueRequest
-	Error         *NamedTestCaseErrorVariableValueRequest
-	FunctionCall  *NamedTestCaseFunctionCallVariableValueRequest
-	Array         *NamedTestCaseArrayVariableValueRequest
+	NamedTestCaseStringVariableValueRequest        *NamedTestCaseStringVariableValueRequest
+	NamedTestCaseNumberVariableValueRequest        *NamedTestCaseNumberVariableValueRequest
+	NamedTestCaseJsonVariableValueRequest          *NamedTestCaseJsonVariableValueRequest
+	NamedTestCaseChatHistoryVariableValueRequest   *NamedTestCaseChatHistoryVariableValueRequest
+	NamedTestCaseSearchResultsVariableValueRequest *NamedTestCaseSearchResultsVariableValueRequest
+	NamedTestCaseErrorVariableValueRequest         *NamedTestCaseErrorVariableValueRequest
+	NamedTestCaseFunctionCallVariableValueRequest  *NamedTestCaseFunctionCallVariableValueRequest
+	NamedTestCaseArrayVariableValueRequest         *NamedTestCaseArrayVariableValueRequest
 }
 
 func (n *NamedTestCaseVariableValueRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueNamedTestCaseStringVariableValueRequest := new(NamedTestCaseStringVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseStringVariableValueRequest); err == nil {
+		n.NamedTestCaseStringVariableValueRequest = valueNamedTestCaseStringVariableValueRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNamedTestCaseNumberVariableValueRequest := new(NamedTestCaseNumberVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseNumberVariableValueRequest); err == nil {
+		n.NamedTestCaseNumberVariableValueRequest = valueNamedTestCaseNumberVariableValueRequest
+		return nil
 	}
-	n.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(NamedTestCaseStringVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.String = value
-	case "NUMBER":
-		value := new(NamedTestCaseNumberVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Number = value
-	case "JSON":
-		value := new(NamedTestCaseJsonVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Json = value
-	case "CHAT_HISTORY":
-		value := new(NamedTestCaseChatHistoryVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(NamedTestCaseSearchResultsVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.SearchResults = value
-	case "ERROR":
-		value := new(NamedTestCaseErrorVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Error = value
-	case "FUNCTION_CALL":
-		value := new(NamedTestCaseFunctionCallVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.FunctionCall = value
-	case "ARRAY":
-		value := new(NamedTestCaseArrayVariableValueRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Array = value
+	valueNamedTestCaseJsonVariableValueRequest := new(NamedTestCaseJsonVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseJsonVariableValueRequest); err == nil {
+		n.NamedTestCaseJsonVariableValueRequest = valueNamedTestCaseJsonVariableValueRequest
+		return nil
 	}
-	return nil
+	valueNamedTestCaseChatHistoryVariableValueRequest := new(NamedTestCaseChatHistoryVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseChatHistoryVariableValueRequest); err == nil {
+		n.NamedTestCaseChatHistoryVariableValueRequest = valueNamedTestCaseChatHistoryVariableValueRequest
+		return nil
+	}
+	valueNamedTestCaseSearchResultsVariableValueRequest := new(NamedTestCaseSearchResultsVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseSearchResultsVariableValueRequest); err == nil {
+		n.NamedTestCaseSearchResultsVariableValueRequest = valueNamedTestCaseSearchResultsVariableValueRequest
+		return nil
+	}
+	valueNamedTestCaseErrorVariableValueRequest := new(NamedTestCaseErrorVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseErrorVariableValueRequest); err == nil {
+		n.NamedTestCaseErrorVariableValueRequest = valueNamedTestCaseErrorVariableValueRequest
+		return nil
+	}
+	valueNamedTestCaseFunctionCallVariableValueRequest := new(NamedTestCaseFunctionCallVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseFunctionCallVariableValueRequest); err == nil {
+		n.NamedTestCaseFunctionCallVariableValueRequest = valueNamedTestCaseFunctionCallVariableValueRequest
+		return nil
+	}
+	valueNamedTestCaseArrayVariableValueRequest := new(NamedTestCaseArrayVariableValueRequest)
+	if err := json.Unmarshal(data, &valueNamedTestCaseArrayVariableValueRequest); err == nil {
+		n.NamedTestCaseArrayVariableValueRequest = valueNamedTestCaseArrayVariableValueRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, n)
 }
 
 func (n NamedTestCaseVariableValueRequest) MarshalJSON() ([]byte, error) {
-	if n.String != nil {
-		return core.MarshalJSONWithExtraProperty(n.String, "type", "STRING")
+	if n.NamedTestCaseStringVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseStringVariableValueRequest)
 	}
-	if n.Number != nil {
-		return core.MarshalJSONWithExtraProperty(n.Number, "type", "NUMBER")
+	if n.NamedTestCaseNumberVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseNumberVariableValueRequest)
 	}
-	if n.Json != nil {
-		return core.MarshalJSONWithExtraProperty(n.Json, "type", "JSON")
+	if n.NamedTestCaseJsonVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseJsonVariableValueRequest)
 	}
-	if n.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(n.ChatHistory, "type", "CHAT_HISTORY")
+	if n.NamedTestCaseChatHistoryVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseChatHistoryVariableValueRequest)
 	}
-	if n.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(n.SearchResults, "type", "SEARCH_RESULTS")
+	if n.NamedTestCaseSearchResultsVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseSearchResultsVariableValueRequest)
 	}
-	if n.Error != nil {
-		return core.MarshalJSONWithExtraProperty(n.Error, "type", "ERROR")
+	if n.NamedTestCaseErrorVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseErrorVariableValueRequest)
 	}
-	if n.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(n.FunctionCall, "type", "FUNCTION_CALL")
+	if n.NamedTestCaseFunctionCallVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseFunctionCallVariableValueRequest)
 	}
-	if n.Array != nil {
-		return core.MarshalJSONWithExtraProperty(n.Array, "type", "ARRAY")
+	if n.NamedTestCaseArrayVariableValueRequest != nil {
+		return json.Marshal(n.NamedTestCaseArrayVariableValueRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", n)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NamedTestCaseVariableValueRequestVisitor interface {
-	VisitString(*NamedTestCaseStringVariableValueRequest) error
-	VisitNumber(*NamedTestCaseNumberVariableValueRequest) error
-	VisitJson(*NamedTestCaseJsonVariableValueRequest) error
-	VisitChatHistory(*NamedTestCaseChatHistoryVariableValueRequest) error
-	VisitSearchResults(*NamedTestCaseSearchResultsVariableValueRequest) error
-	VisitError(*NamedTestCaseErrorVariableValueRequest) error
-	VisitFunctionCall(*NamedTestCaseFunctionCallVariableValueRequest) error
-	VisitArray(*NamedTestCaseArrayVariableValueRequest) error
+	VisitNamedTestCaseStringVariableValueRequest(*NamedTestCaseStringVariableValueRequest) error
+	VisitNamedTestCaseNumberVariableValueRequest(*NamedTestCaseNumberVariableValueRequest) error
+	VisitNamedTestCaseJsonVariableValueRequest(*NamedTestCaseJsonVariableValueRequest) error
+	VisitNamedTestCaseChatHistoryVariableValueRequest(*NamedTestCaseChatHistoryVariableValueRequest) error
+	VisitNamedTestCaseSearchResultsVariableValueRequest(*NamedTestCaseSearchResultsVariableValueRequest) error
+	VisitNamedTestCaseErrorVariableValueRequest(*NamedTestCaseErrorVariableValueRequest) error
+	VisitNamedTestCaseFunctionCallVariableValueRequest(*NamedTestCaseFunctionCallVariableValueRequest) error
+	VisitNamedTestCaseArrayVariableValueRequest(*NamedTestCaseArrayVariableValueRequest) error
 }
 
 func (n *NamedTestCaseVariableValueRequest) Accept(visitor NamedTestCaseVariableValueRequestVisitor) error {
-	if n.String != nil {
-		return visitor.VisitString(n.String)
+	if n.NamedTestCaseStringVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseStringVariableValueRequest(n.NamedTestCaseStringVariableValueRequest)
 	}
-	if n.Number != nil {
-		return visitor.VisitNumber(n.Number)
+	if n.NamedTestCaseNumberVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseNumberVariableValueRequest(n.NamedTestCaseNumberVariableValueRequest)
 	}
-	if n.Json != nil {
-		return visitor.VisitJson(n.Json)
+	if n.NamedTestCaseJsonVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseJsonVariableValueRequest(n.NamedTestCaseJsonVariableValueRequest)
 	}
-	if n.ChatHistory != nil {
-		return visitor.VisitChatHistory(n.ChatHistory)
+	if n.NamedTestCaseChatHistoryVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseChatHistoryVariableValueRequest(n.NamedTestCaseChatHistoryVariableValueRequest)
 	}
-	if n.SearchResults != nil {
-		return visitor.VisitSearchResults(n.SearchResults)
+	if n.NamedTestCaseSearchResultsVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseSearchResultsVariableValueRequest(n.NamedTestCaseSearchResultsVariableValueRequest)
 	}
-	if n.Error != nil {
-		return visitor.VisitError(n.Error)
+	if n.NamedTestCaseErrorVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseErrorVariableValueRequest(n.NamedTestCaseErrorVariableValueRequest)
 	}
-	if n.FunctionCall != nil {
-		return visitor.VisitFunctionCall(n.FunctionCall)
+	if n.NamedTestCaseFunctionCallVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseFunctionCallVariableValueRequest(n.NamedTestCaseFunctionCallVariableValueRequest)
 	}
-	if n.Array != nil {
-		return visitor.VisitArray(n.Array)
+	if n.NamedTestCaseArrayVariableValueRequest != nil {
+		return visitor.VisitNamedTestCaseArrayVariableValueRequest(n.NamedTestCaseArrayVariableValueRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", n)
+	return fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NodeInputCompiledArrayValue struct {
 	NodeInputId string                    `json:"node_input_id" url:"node_input_id"`
 	Key         string                    `json:"key" url:"key"`
 	Value       []*ArrayVariableValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9033,15 +10690,28 @@ func (n *NodeInputCompiledArrayValue) GetExtraProperties() map[string]interface{
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledArrayValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledArrayValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledArrayValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledArrayValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledArrayValue(value)
+	*n = NodeInputCompiledArrayValue(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ARRAY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9049,6 +10719,18 @@ func (n *NodeInputCompiledArrayValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledArrayValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledArrayValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledArrayValue) String() string {
@@ -9067,6 +10749,7 @@ type NodeInputCompiledChatHistoryValue struct {
 	NodeInputId string         `json:"node_input_id" url:"node_input_id"`
 	Key         string         `json:"key" url:"key"`
 	Value       []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9076,15 +10759,28 @@ func (n *NodeInputCompiledChatHistoryValue) GetExtraProperties() map[string]inte
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledChatHistoryValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledChatHistoryValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledChatHistoryValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledChatHistoryValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledChatHistoryValue(value)
+	*n = NodeInputCompiledChatHistoryValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9092,6 +10788,18 @@ func (n *NodeInputCompiledChatHistoryValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledChatHistoryValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledChatHistoryValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledChatHistoryValue) String() string {
@@ -9110,6 +10818,7 @@ type NodeInputCompiledErrorValue struct {
 	NodeInputId string       `json:"node_input_id" url:"node_input_id"`
 	Key         string       `json:"key" url:"key"`
 	Value       *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9119,15 +10828,28 @@ func (n *NodeInputCompiledErrorValue) GetExtraProperties() map[string]interface{
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledErrorValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledErrorValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledErrorValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledErrorValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledErrorValue(value)
+	*n = NodeInputCompiledErrorValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ERROR", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9135,6 +10857,18 @@ func (n *NodeInputCompiledErrorValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledErrorValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledErrorValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledErrorValue) String() string {
@@ -9153,6 +10887,7 @@ type NodeInputCompiledFunctionCall struct {
 	NodeInputId string        `json:"node_input_id" url:"node_input_id"`
 	Key         string        `json:"key" url:"key"`
 	Value       *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9162,15 +10897,28 @@ func (n *NodeInputCompiledFunctionCall) GetExtraProperties() map[string]interfac
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledFunctionCall) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledFunctionCall) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledFunctionCall
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledFunctionCall
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledFunctionCall(value)
+	*n = NodeInputCompiledFunctionCall(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9178,6 +10926,18 @@ func (n *NodeInputCompiledFunctionCall) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledFunctionCall) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledFunctionCall
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledFunctionCall) String() string {
@@ -9196,6 +10956,7 @@ type NodeInputCompiledJsonValue struct {
 	NodeInputId string      `json:"node_input_id" url:"node_input_id"`
 	Key         string      `json:"key" url:"key"`
 	Value       interface{} `json:"value" url:"value"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9205,15 +10966,28 @@ func (n *NodeInputCompiledJsonValue) GetExtraProperties() map[string]interface{}
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledJsonValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledJsonValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledJsonValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledJsonValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledJsonValue(value)
+	*n = NodeInputCompiledJsonValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "JSON", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9221,6 +10995,18 @@ func (n *NodeInputCompiledJsonValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledJsonValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledJsonValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledJsonValue) String() string {
@@ -9239,6 +11025,7 @@ type NodeInputCompiledNumberValue struct {
 	NodeInputId string   `json:"node_input_id" url:"node_input_id"`
 	Key         string   `json:"key" url:"key"`
 	Value       *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9248,15 +11035,28 @@ func (n *NodeInputCompiledNumberValue) GetExtraProperties() map[string]interface
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledNumberValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledNumberValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledNumberValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledNumberValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledNumberValue(value)
+	*n = NodeInputCompiledNumberValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9264,6 +11064,18 @@ func (n *NodeInputCompiledNumberValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledNumberValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledNumberValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledNumberValue) String() string {
@@ -9282,6 +11094,7 @@ type NodeInputCompiledSearchResultsValue struct {
 	NodeInputId string          `json:"node_input_id" url:"node_input_id"`
 	Key         string          `json:"key" url:"key"`
 	Value       []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9291,15 +11104,28 @@ func (n *NodeInputCompiledSearchResultsValue) GetExtraProperties() map[string]in
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledSearchResultsValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledSearchResultsValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledSearchResultsValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledSearchResultsValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledSearchResultsValue(value)
+	*n = NodeInputCompiledSearchResultsValue(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9307,6 +11133,18 @@ func (n *NodeInputCompiledSearchResultsValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledSearchResultsValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledSearchResultsValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledSearchResultsValue) String() string {
@@ -9325,6 +11163,7 @@ type NodeInputCompiledStringValue struct {
 	NodeInputId string  `json:"node_input_id" url:"node_input_id"`
 	Key         string  `json:"key" url:"key"`
 	Value       *string `json:"value,omitempty" url:"value,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9334,15 +11173,28 @@ func (n *NodeInputCompiledStringValue) GetExtraProperties() map[string]interface
 	return n.extraProperties
 }
 
+func (n *NodeInputCompiledStringValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeInputCompiledStringValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeInputCompiledStringValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeInputCompiledStringValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeInputCompiledStringValue(value)
+	*n = NodeInputCompiledStringValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "STRING", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9350,6 +11202,18 @@ func (n *NodeInputCompiledStringValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeInputCompiledStringValue) MarshalJSON() ([]byte, error) {
+	type embed NodeInputCompiledStringValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeInputCompiledStringValue) String() string {
@@ -9365,143 +11229,125 @@ func (n *NodeInputCompiledStringValue) String() string {
 }
 
 type NodeInputVariableCompiledValue struct {
-	Type          string
-	String        *NodeInputCompiledStringValue
-	Number        *NodeInputCompiledNumberValue
-	Json          *NodeInputCompiledJsonValue
-	ChatHistory   *NodeInputCompiledChatHistoryValue
-	SearchResults *NodeInputCompiledSearchResultsValue
-	Error         *NodeInputCompiledErrorValue
-	Array         *NodeInputCompiledArrayValue
-	FunctionCall  *NodeInputCompiledFunctionCall
+	NodeInputCompiledStringValue        *NodeInputCompiledStringValue
+	NodeInputCompiledNumberValue        *NodeInputCompiledNumberValue
+	NodeInputCompiledJsonValue          *NodeInputCompiledJsonValue
+	NodeInputCompiledChatHistoryValue   *NodeInputCompiledChatHistoryValue
+	NodeInputCompiledSearchResultsValue *NodeInputCompiledSearchResultsValue
+	NodeInputCompiledErrorValue         *NodeInputCompiledErrorValue
+	NodeInputCompiledArrayValue         *NodeInputCompiledArrayValue
+	NodeInputCompiledFunctionCall       *NodeInputCompiledFunctionCall
 }
 
 func (n *NodeInputVariableCompiledValue) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueNodeInputCompiledStringValue := new(NodeInputCompiledStringValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledStringValue); err == nil {
+		n.NodeInputCompiledStringValue = valueNodeInputCompiledStringValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNodeInputCompiledNumberValue := new(NodeInputCompiledNumberValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledNumberValue); err == nil {
+		n.NodeInputCompiledNumberValue = valueNodeInputCompiledNumberValue
+		return nil
 	}
-	n.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(NodeInputCompiledStringValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.String = value
-	case "NUMBER":
-		value := new(NodeInputCompiledNumberValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Number = value
-	case "JSON":
-		value := new(NodeInputCompiledJsonValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Json = value
-	case "CHAT_HISTORY":
-		value := new(NodeInputCompiledChatHistoryValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(NodeInputCompiledSearchResultsValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.SearchResults = value
-	case "ERROR":
-		value := new(NodeInputCompiledErrorValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Error = value
-	case "ARRAY":
-		value := new(NodeInputCompiledArrayValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Array = value
-	case "FUNCTION_CALL":
-		value := new(NodeInputCompiledFunctionCall)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.FunctionCall = value
+	valueNodeInputCompiledJsonValue := new(NodeInputCompiledJsonValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledJsonValue); err == nil {
+		n.NodeInputCompiledJsonValue = valueNodeInputCompiledJsonValue
+		return nil
 	}
-	return nil
+	valueNodeInputCompiledChatHistoryValue := new(NodeInputCompiledChatHistoryValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledChatHistoryValue); err == nil {
+		n.NodeInputCompiledChatHistoryValue = valueNodeInputCompiledChatHistoryValue
+		return nil
+	}
+	valueNodeInputCompiledSearchResultsValue := new(NodeInputCompiledSearchResultsValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledSearchResultsValue); err == nil {
+		n.NodeInputCompiledSearchResultsValue = valueNodeInputCompiledSearchResultsValue
+		return nil
+	}
+	valueNodeInputCompiledErrorValue := new(NodeInputCompiledErrorValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledErrorValue); err == nil {
+		n.NodeInputCompiledErrorValue = valueNodeInputCompiledErrorValue
+		return nil
+	}
+	valueNodeInputCompiledArrayValue := new(NodeInputCompiledArrayValue)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledArrayValue); err == nil {
+		n.NodeInputCompiledArrayValue = valueNodeInputCompiledArrayValue
+		return nil
+	}
+	valueNodeInputCompiledFunctionCall := new(NodeInputCompiledFunctionCall)
+	if err := json.Unmarshal(data, &valueNodeInputCompiledFunctionCall); err == nil {
+		n.NodeInputCompiledFunctionCall = valueNodeInputCompiledFunctionCall
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, n)
 }
 
 func (n NodeInputVariableCompiledValue) MarshalJSON() ([]byte, error) {
-	if n.String != nil {
-		return core.MarshalJSONWithExtraProperty(n.String, "type", "STRING")
+	if n.NodeInputCompiledStringValue != nil {
+		return json.Marshal(n.NodeInputCompiledStringValue)
 	}
-	if n.Number != nil {
-		return core.MarshalJSONWithExtraProperty(n.Number, "type", "NUMBER")
+	if n.NodeInputCompiledNumberValue != nil {
+		return json.Marshal(n.NodeInputCompiledNumberValue)
 	}
-	if n.Json != nil {
-		return core.MarshalJSONWithExtraProperty(n.Json, "type", "JSON")
+	if n.NodeInputCompiledJsonValue != nil {
+		return json.Marshal(n.NodeInputCompiledJsonValue)
 	}
-	if n.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(n.ChatHistory, "type", "CHAT_HISTORY")
+	if n.NodeInputCompiledChatHistoryValue != nil {
+		return json.Marshal(n.NodeInputCompiledChatHistoryValue)
 	}
-	if n.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(n.SearchResults, "type", "SEARCH_RESULTS")
+	if n.NodeInputCompiledSearchResultsValue != nil {
+		return json.Marshal(n.NodeInputCompiledSearchResultsValue)
 	}
-	if n.Error != nil {
-		return core.MarshalJSONWithExtraProperty(n.Error, "type", "ERROR")
+	if n.NodeInputCompiledErrorValue != nil {
+		return json.Marshal(n.NodeInputCompiledErrorValue)
 	}
-	if n.Array != nil {
-		return core.MarshalJSONWithExtraProperty(n.Array, "type", "ARRAY")
+	if n.NodeInputCompiledArrayValue != nil {
+		return json.Marshal(n.NodeInputCompiledArrayValue)
 	}
-	if n.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(n.FunctionCall, "type", "FUNCTION_CALL")
+	if n.NodeInputCompiledFunctionCall != nil {
+		return json.Marshal(n.NodeInputCompiledFunctionCall)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", n)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NodeInputVariableCompiledValueVisitor interface {
-	VisitString(*NodeInputCompiledStringValue) error
-	VisitNumber(*NodeInputCompiledNumberValue) error
-	VisitJson(*NodeInputCompiledJsonValue) error
-	VisitChatHistory(*NodeInputCompiledChatHistoryValue) error
-	VisitSearchResults(*NodeInputCompiledSearchResultsValue) error
-	VisitError(*NodeInputCompiledErrorValue) error
-	VisitArray(*NodeInputCompiledArrayValue) error
-	VisitFunctionCall(*NodeInputCompiledFunctionCall) error
+	VisitNodeInputCompiledStringValue(*NodeInputCompiledStringValue) error
+	VisitNodeInputCompiledNumberValue(*NodeInputCompiledNumberValue) error
+	VisitNodeInputCompiledJsonValue(*NodeInputCompiledJsonValue) error
+	VisitNodeInputCompiledChatHistoryValue(*NodeInputCompiledChatHistoryValue) error
+	VisitNodeInputCompiledSearchResultsValue(*NodeInputCompiledSearchResultsValue) error
+	VisitNodeInputCompiledErrorValue(*NodeInputCompiledErrorValue) error
+	VisitNodeInputCompiledArrayValue(*NodeInputCompiledArrayValue) error
+	VisitNodeInputCompiledFunctionCall(*NodeInputCompiledFunctionCall) error
 }
 
 func (n *NodeInputVariableCompiledValue) Accept(visitor NodeInputVariableCompiledValueVisitor) error {
-	if n.String != nil {
-		return visitor.VisitString(n.String)
+	if n.NodeInputCompiledStringValue != nil {
+		return visitor.VisitNodeInputCompiledStringValue(n.NodeInputCompiledStringValue)
 	}
-	if n.Number != nil {
-		return visitor.VisitNumber(n.Number)
+	if n.NodeInputCompiledNumberValue != nil {
+		return visitor.VisitNodeInputCompiledNumberValue(n.NodeInputCompiledNumberValue)
 	}
-	if n.Json != nil {
-		return visitor.VisitJson(n.Json)
+	if n.NodeInputCompiledJsonValue != nil {
+		return visitor.VisitNodeInputCompiledJsonValue(n.NodeInputCompiledJsonValue)
 	}
-	if n.ChatHistory != nil {
-		return visitor.VisitChatHistory(n.ChatHistory)
+	if n.NodeInputCompiledChatHistoryValue != nil {
+		return visitor.VisitNodeInputCompiledChatHistoryValue(n.NodeInputCompiledChatHistoryValue)
 	}
-	if n.SearchResults != nil {
-		return visitor.VisitSearchResults(n.SearchResults)
+	if n.NodeInputCompiledSearchResultsValue != nil {
+		return visitor.VisitNodeInputCompiledSearchResultsValue(n.NodeInputCompiledSearchResultsValue)
 	}
-	if n.Error != nil {
-		return visitor.VisitError(n.Error)
+	if n.NodeInputCompiledErrorValue != nil {
+		return visitor.VisitNodeInputCompiledErrorValue(n.NodeInputCompiledErrorValue)
 	}
-	if n.Array != nil {
-		return visitor.VisitArray(n.Array)
+	if n.NodeInputCompiledArrayValue != nil {
+		return visitor.VisitNodeInputCompiledArrayValue(n.NodeInputCompiledArrayValue)
 	}
-	if n.FunctionCall != nil {
-		return visitor.VisitFunctionCall(n.FunctionCall)
+	if n.NodeInputCompiledFunctionCall != nil {
+		return visitor.VisitNodeInputCompiledFunctionCall(n.NodeInputCompiledFunctionCall)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", n)
+	return fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 // An output returned by a node that is of type ARRAY.
@@ -9509,6 +11355,7 @@ type NodeOutputCompiledArrayValue struct {
 	Value        []*ArrayVellumValueItem       `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9518,15 +11365,28 @@ func (n *NodeOutputCompiledArrayValue) GetExtraProperties() map[string]interface
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledArrayValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledArrayValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledArrayValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledArrayValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledArrayValue(value)
+	*n = NodeOutputCompiledArrayValue(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ARRAY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9534,6 +11394,18 @@ func (n *NodeOutputCompiledArrayValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledArrayValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledArrayValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledArrayValue) String() string {
@@ -9553,6 +11425,7 @@ type NodeOutputCompiledChatHistoryValue struct {
 	Value        []*ChatMessage                `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9562,15 +11435,28 @@ func (n *NodeOutputCompiledChatHistoryValue) GetExtraProperties() map[string]int
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledChatHistoryValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledChatHistoryValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledChatHistoryValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledChatHistoryValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledChatHistoryValue(value)
+	*n = NodeOutputCompiledChatHistoryValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9578,6 +11464,18 @@ func (n *NodeOutputCompiledChatHistoryValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledChatHistoryValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledChatHistoryValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledChatHistoryValue) String() string {
@@ -9597,6 +11495,7 @@ type NodeOutputCompiledErrorValue struct {
 	Value        *VellumError                  `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9606,15 +11505,28 @@ func (n *NodeOutputCompiledErrorValue) GetExtraProperties() map[string]interface
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledErrorValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledErrorValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledErrorValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledErrorValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledErrorValue(value)
+	*n = NodeOutputCompiledErrorValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "ERROR", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9622,6 +11534,18 @@ func (n *NodeOutputCompiledErrorValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledErrorValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledErrorValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledErrorValue) String() string {
@@ -9641,6 +11565,7 @@ type NodeOutputCompiledFunctionCallValue struct {
 	Value        *FunctionCall                 `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9650,15 +11575,28 @@ func (n *NodeOutputCompiledFunctionCallValue) GetExtraProperties() map[string]in
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledFunctionCallValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledFunctionCallValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledFunctionCallValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledFunctionCallValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledFunctionCallValue(value)
+	*n = NodeOutputCompiledFunctionCallValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9666,6 +11604,18 @@ func (n *NodeOutputCompiledFunctionCallValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledFunctionCallValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledFunctionCallValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledFunctionCallValue) String() string {
@@ -9685,6 +11635,7 @@ type NodeOutputCompiledJsonValue struct {
 	Value        interface{}                   `json:"value" url:"value"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9694,15 +11645,28 @@ func (n *NodeOutputCompiledJsonValue) GetExtraProperties() map[string]interface{
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledJsonValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledJsonValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledJsonValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledJsonValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledJsonValue(value)
+	*n = NodeOutputCompiledJsonValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "JSON", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9710,6 +11674,18 @@ func (n *NodeOutputCompiledJsonValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledJsonValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledJsonValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledJsonValue) String() string {
@@ -9729,6 +11705,7 @@ type NodeOutputCompiledNumberValue struct {
 	Value        *float64                      `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9738,15 +11715,28 @@ func (n *NodeOutputCompiledNumberValue) GetExtraProperties() map[string]interfac
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledNumberValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledNumberValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledNumberValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledNumberValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledNumberValue(value)
+	*n = NodeOutputCompiledNumberValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9754,6 +11744,18 @@ func (n *NodeOutputCompiledNumberValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledNumberValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledNumberValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledNumberValue) String() string {
@@ -9773,6 +11775,7 @@ type NodeOutputCompiledSearchResultsValue struct {
 	Value        []*SearchResult               `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9782,15 +11785,28 @@ func (n *NodeOutputCompiledSearchResultsValue) GetExtraProperties() map[string]i
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledSearchResultsValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledSearchResultsValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledSearchResultsValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledSearchResultsValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledSearchResultsValue(value)
+	*n = NodeOutputCompiledSearchResultsValue(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9798,6 +11814,18 @@ func (n *NodeOutputCompiledSearchResultsValue) UnmarshalJSON(data []byte) error 
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledSearchResultsValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledSearchResultsValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledSearchResultsValue) String() string {
@@ -9817,6 +11845,7 @@ type NodeOutputCompiledStringValue struct {
 	Value        *string                       `json:"value,omitempty" url:"value,omitempty"`
 	NodeOutputId string                        `json:"node_output_id" url:"node_output_id"`
 	State        *WorkflowNodeResultEventState `json:"state,omitempty" url:"state,omitempty"`
+	type_        string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -9826,15 +11855,28 @@ func (n *NodeOutputCompiledStringValue) GetExtraProperties() map[string]interfac
 	return n.extraProperties
 }
 
+func (n *NodeOutputCompiledStringValue) Type() string {
+	return n.type_
+}
+
 func (n *NodeOutputCompiledStringValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NodeOutputCompiledStringValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NodeOutputCompiledStringValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NodeOutputCompiledStringValue(value)
+	*n = NodeOutputCompiledStringValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "STRING", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -9842,6 +11884,18 @@ func (n *NodeOutputCompiledStringValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NodeOutputCompiledStringValue) MarshalJSON() ([]byte, error) {
+	type embed NodeOutputCompiledStringValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NodeOutputCompiledStringValue) String() string {
@@ -9857,143 +11911,125 @@ func (n *NodeOutputCompiledStringValue) String() string {
 }
 
 type NodeOutputCompiledValue struct {
-	Type          string
-	String        *NodeOutputCompiledStringValue
-	Number        *NodeOutputCompiledNumberValue
-	Json          *NodeOutputCompiledJsonValue
-	ChatHistory   *NodeOutputCompiledChatHistoryValue
-	SearchResults *NodeOutputCompiledSearchResultsValue
-	Error         *NodeOutputCompiledErrorValue
-	Array         *NodeOutputCompiledArrayValue
-	FunctionCall  *NodeOutputCompiledFunctionCallValue
+	NodeOutputCompiledStringValue        *NodeOutputCompiledStringValue
+	NodeOutputCompiledNumberValue        *NodeOutputCompiledNumberValue
+	NodeOutputCompiledJsonValue          *NodeOutputCompiledJsonValue
+	NodeOutputCompiledChatHistoryValue   *NodeOutputCompiledChatHistoryValue
+	NodeOutputCompiledSearchResultsValue *NodeOutputCompiledSearchResultsValue
+	NodeOutputCompiledErrorValue         *NodeOutputCompiledErrorValue
+	NodeOutputCompiledArrayValue         *NodeOutputCompiledArrayValue
+	NodeOutputCompiledFunctionCallValue  *NodeOutputCompiledFunctionCallValue
 }
 
 func (n *NodeOutputCompiledValue) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueNodeOutputCompiledStringValue := new(NodeOutputCompiledStringValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledStringValue); err == nil {
+		n.NodeOutputCompiledStringValue = valueNodeOutputCompiledStringValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueNodeOutputCompiledNumberValue := new(NodeOutputCompiledNumberValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledNumberValue); err == nil {
+		n.NodeOutputCompiledNumberValue = valueNodeOutputCompiledNumberValue
+		return nil
 	}
-	n.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(NodeOutputCompiledStringValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.String = value
-	case "NUMBER":
-		value := new(NodeOutputCompiledNumberValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Number = value
-	case "JSON":
-		value := new(NodeOutputCompiledJsonValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Json = value
-	case "CHAT_HISTORY":
-		value := new(NodeOutputCompiledChatHistoryValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(NodeOutputCompiledSearchResultsValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.SearchResults = value
-	case "ERROR":
-		value := new(NodeOutputCompiledErrorValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Error = value
-	case "ARRAY":
-		value := new(NodeOutputCompiledArrayValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.Array = value
-	case "FUNCTION_CALL":
-		value := new(NodeOutputCompiledFunctionCallValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		n.FunctionCall = value
+	valueNodeOutputCompiledJsonValue := new(NodeOutputCompiledJsonValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledJsonValue); err == nil {
+		n.NodeOutputCompiledJsonValue = valueNodeOutputCompiledJsonValue
+		return nil
 	}
-	return nil
+	valueNodeOutputCompiledChatHistoryValue := new(NodeOutputCompiledChatHistoryValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledChatHistoryValue); err == nil {
+		n.NodeOutputCompiledChatHistoryValue = valueNodeOutputCompiledChatHistoryValue
+		return nil
+	}
+	valueNodeOutputCompiledSearchResultsValue := new(NodeOutputCompiledSearchResultsValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledSearchResultsValue); err == nil {
+		n.NodeOutputCompiledSearchResultsValue = valueNodeOutputCompiledSearchResultsValue
+		return nil
+	}
+	valueNodeOutputCompiledErrorValue := new(NodeOutputCompiledErrorValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledErrorValue); err == nil {
+		n.NodeOutputCompiledErrorValue = valueNodeOutputCompiledErrorValue
+		return nil
+	}
+	valueNodeOutputCompiledArrayValue := new(NodeOutputCompiledArrayValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledArrayValue); err == nil {
+		n.NodeOutputCompiledArrayValue = valueNodeOutputCompiledArrayValue
+		return nil
+	}
+	valueNodeOutputCompiledFunctionCallValue := new(NodeOutputCompiledFunctionCallValue)
+	if err := json.Unmarshal(data, &valueNodeOutputCompiledFunctionCallValue); err == nil {
+		n.NodeOutputCompiledFunctionCallValue = valueNodeOutputCompiledFunctionCallValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, n)
 }
 
 func (n NodeOutputCompiledValue) MarshalJSON() ([]byte, error) {
-	if n.String != nil {
-		return core.MarshalJSONWithExtraProperty(n.String, "type", "STRING")
+	if n.NodeOutputCompiledStringValue != nil {
+		return json.Marshal(n.NodeOutputCompiledStringValue)
 	}
-	if n.Number != nil {
-		return core.MarshalJSONWithExtraProperty(n.Number, "type", "NUMBER")
+	if n.NodeOutputCompiledNumberValue != nil {
+		return json.Marshal(n.NodeOutputCompiledNumberValue)
 	}
-	if n.Json != nil {
-		return core.MarshalJSONWithExtraProperty(n.Json, "type", "JSON")
+	if n.NodeOutputCompiledJsonValue != nil {
+		return json.Marshal(n.NodeOutputCompiledJsonValue)
 	}
-	if n.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(n.ChatHistory, "type", "CHAT_HISTORY")
+	if n.NodeOutputCompiledChatHistoryValue != nil {
+		return json.Marshal(n.NodeOutputCompiledChatHistoryValue)
 	}
-	if n.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(n.SearchResults, "type", "SEARCH_RESULTS")
+	if n.NodeOutputCompiledSearchResultsValue != nil {
+		return json.Marshal(n.NodeOutputCompiledSearchResultsValue)
 	}
-	if n.Error != nil {
-		return core.MarshalJSONWithExtraProperty(n.Error, "type", "ERROR")
+	if n.NodeOutputCompiledErrorValue != nil {
+		return json.Marshal(n.NodeOutputCompiledErrorValue)
 	}
-	if n.Array != nil {
-		return core.MarshalJSONWithExtraProperty(n.Array, "type", "ARRAY")
+	if n.NodeOutputCompiledArrayValue != nil {
+		return json.Marshal(n.NodeOutputCompiledArrayValue)
 	}
-	if n.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(n.FunctionCall, "type", "FUNCTION_CALL")
+	if n.NodeOutputCompiledFunctionCallValue != nil {
+		return json.Marshal(n.NodeOutputCompiledFunctionCallValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", n)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NodeOutputCompiledValueVisitor interface {
-	VisitString(*NodeOutputCompiledStringValue) error
-	VisitNumber(*NodeOutputCompiledNumberValue) error
-	VisitJson(*NodeOutputCompiledJsonValue) error
-	VisitChatHistory(*NodeOutputCompiledChatHistoryValue) error
-	VisitSearchResults(*NodeOutputCompiledSearchResultsValue) error
-	VisitError(*NodeOutputCompiledErrorValue) error
-	VisitArray(*NodeOutputCompiledArrayValue) error
-	VisitFunctionCall(*NodeOutputCompiledFunctionCallValue) error
+	VisitNodeOutputCompiledStringValue(*NodeOutputCompiledStringValue) error
+	VisitNodeOutputCompiledNumberValue(*NodeOutputCompiledNumberValue) error
+	VisitNodeOutputCompiledJsonValue(*NodeOutputCompiledJsonValue) error
+	VisitNodeOutputCompiledChatHistoryValue(*NodeOutputCompiledChatHistoryValue) error
+	VisitNodeOutputCompiledSearchResultsValue(*NodeOutputCompiledSearchResultsValue) error
+	VisitNodeOutputCompiledErrorValue(*NodeOutputCompiledErrorValue) error
+	VisitNodeOutputCompiledArrayValue(*NodeOutputCompiledArrayValue) error
+	VisitNodeOutputCompiledFunctionCallValue(*NodeOutputCompiledFunctionCallValue) error
 }
 
 func (n *NodeOutputCompiledValue) Accept(visitor NodeOutputCompiledValueVisitor) error {
-	if n.String != nil {
-		return visitor.VisitString(n.String)
+	if n.NodeOutputCompiledStringValue != nil {
+		return visitor.VisitNodeOutputCompiledStringValue(n.NodeOutputCompiledStringValue)
 	}
-	if n.Number != nil {
-		return visitor.VisitNumber(n.Number)
+	if n.NodeOutputCompiledNumberValue != nil {
+		return visitor.VisitNodeOutputCompiledNumberValue(n.NodeOutputCompiledNumberValue)
 	}
-	if n.Json != nil {
-		return visitor.VisitJson(n.Json)
+	if n.NodeOutputCompiledJsonValue != nil {
+		return visitor.VisitNodeOutputCompiledJsonValue(n.NodeOutputCompiledJsonValue)
 	}
-	if n.ChatHistory != nil {
-		return visitor.VisitChatHistory(n.ChatHistory)
+	if n.NodeOutputCompiledChatHistoryValue != nil {
+		return visitor.VisitNodeOutputCompiledChatHistoryValue(n.NodeOutputCompiledChatHistoryValue)
 	}
-	if n.SearchResults != nil {
-		return visitor.VisitSearchResults(n.SearchResults)
+	if n.NodeOutputCompiledSearchResultsValue != nil {
+		return visitor.VisitNodeOutputCompiledSearchResultsValue(n.NodeOutputCompiledSearchResultsValue)
 	}
-	if n.Error != nil {
-		return visitor.VisitError(n.Error)
+	if n.NodeOutputCompiledErrorValue != nil {
+		return visitor.VisitNodeOutputCompiledErrorValue(n.NodeOutputCompiledErrorValue)
 	}
-	if n.Array != nil {
-		return visitor.VisitArray(n.Array)
+	if n.NodeOutputCompiledArrayValue != nil {
+		return visitor.VisitNodeOutputCompiledArrayValue(n.NodeOutputCompiledArrayValue)
 	}
-	if n.FunctionCall != nil {
-		return visitor.VisitFunctionCall(n.FunctionCall)
+	if n.NodeOutputCompiledFunctionCallValue != nil {
+		return visitor.VisitNodeOutputCompiledFunctionCallValue(n.NodeOutputCompiledFunctionCallValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", n)
+	return fmt.Errorf("type %T does not include a non-empty union type", n)
 }
 
 type NormalizedLogProbs struct {
@@ -10084,6 +12120,7 @@ func (n *NormalizedTokenLogProbs) String() string {
 
 type NumberVariableValue struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10093,15 +12130,28 @@ func (n *NumberVariableValue) GetExtraProperties() map[string]interface{} {
 	return n.extraProperties
 }
 
+func (n *NumberVariableValue) Type() string {
+	return n.type_
+}
+
 func (n *NumberVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NumberVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NumberVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NumberVariableValue(value)
+	*n = NumberVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -10109,6 +12159,18 @@ func (n *NumberVariableValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NumberVariableValue) MarshalJSON() ([]byte, error) {
+	type embed NumberVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NumberVariableValue) String() string {
@@ -10126,6 +12188,7 @@ func (n *NumberVariableValue) String() string {
 // A value representing a number.
 type NumberVellumValue struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10135,15 +12198,28 @@ func (n *NumberVellumValue) GetExtraProperties() map[string]interface{} {
 	return n.extraProperties
 }
 
+func (n *NumberVellumValue) Type() string {
+	return n.type_
+}
+
 func (n *NumberVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler NumberVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NumberVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NumberVellumValue(value)
+	*n = NumberVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -10151,6 +12227,18 @@ func (n *NumberVellumValue) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NumberVellumValue) MarshalJSON() ([]byte, error) {
+	type embed NumberVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NumberVellumValue) String() string {
@@ -10168,6 +12256,7 @@ func (n *NumberVellumValue) String() string {
 // A value representing a number.
 type NumberVellumValueRequest struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10177,15 +12266,28 @@ func (n *NumberVellumValueRequest) GetExtraProperties() map[string]interface{} {
 	return n.extraProperties
 }
 
+func (n *NumberVellumValueRequest) Type() string {
+	return n.type_
+}
+
 func (n *NumberVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler NumberVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed NumberVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*n = NumberVellumValueRequest(value)
+	*n = NumberVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", n, "NUMBER", unmarshaler.Type)
+	}
+	n.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *n)
+	extraProperties, err := core.ExtractExtraProperties(data, *n, "type")
 	if err != nil {
 		return err
 	}
@@ -10193,6 +12295,18 @@ func (n *NumberVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	n._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (n *NumberVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed NumberVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*n),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (n *NumberVellumValueRequest) String() string {
@@ -10293,7 +12407,8 @@ func (o *OpenAiVectorizerConfigRequest) String() string {
 
 // OpenAI vectorizer for text-embedding-3-large.
 type OpenAiVectorizerTextEmbedding3Large struct {
-	Config *OpenAiVectorizerConfig `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfig `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10303,15 +12418,28 @@ func (o *OpenAiVectorizerTextEmbedding3Large) GetExtraProperties() map[string]in
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbedding3Large) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbedding3Large) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbedding3Large
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbedding3Large
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbedding3Large(value)
+	*o = OpenAiVectorizerTextEmbedding3Large(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-3-large" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-3-large", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10319,6 +12447,18 @@ func (o *OpenAiVectorizerTextEmbedding3Large) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbedding3Large) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbedding3Large
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-3-large",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbedding3Large) String() string {
@@ -10335,7 +12475,8 @@ func (o *OpenAiVectorizerTextEmbedding3Large) String() string {
 
 // OpenAI vectorizer for text-embedding-3-large.
 type OpenAiVectorizerTextEmbedding3LargeRequest struct {
-	Config *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10345,15 +12486,28 @@ func (o *OpenAiVectorizerTextEmbedding3LargeRequest) GetExtraProperties() map[st
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbedding3LargeRequest) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbedding3LargeRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbedding3LargeRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbedding3LargeRequest
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbedding3LargeRequest(value)
+	*o = OpenAiVectorizerTextEmbedding3LargeRequest(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-3-large" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-3-large", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10361,6 +12515,18 @@ func (o *OpenAiVectorizerTextEmbedding3LargeRequest) UnmarshalJSON(data []byte) 
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbedding3LargeRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbedding3LargeRequest
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-3-large",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbedding3LargeRequest) String() string {
@@ -10377,7 +12543,8 @@ func (o *OpenAiVectorizerTextEmbedding3LargeRequest) String() string {
 
 // OpenAI vectorizer for text-embedding-3-small.
 type OpenAiVectorizerTextEmbedding3Small struct {
-	Config *OpenAiVectorizerConfig `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfig `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10387,15 +12554,28 @@ func (o *OpenAiVectorizerTextEmbedding3Small) GetExtraProperties() map[string]in
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbedding3Small) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbedding3Small) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbedding3Small
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbedding3Small
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbedding3Small(value)
+	*o = OpenAiVectorizerTextEmbedding3Small(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-3-small" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-3-small", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10403,6 +12583,18 @@ func (o *OpenAiVectorizerTextEmbedding3Small) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbedding3Small) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbedding3Small
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-3-small",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbedding3Small) String() string {
@@ -10419,7 +12611,8 @@ func (o *OpenAiVectorizerTextEmbedding3Small) String() string {
 
 // OpenAI vectorizer for text-embedding-3-small.
 type OpenAiVectorizerTextEmbedding3SmallRequest struct {
-	Config *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10429,15 +12622,28 @@ func (o *OpenAiVectorizerTextEmbedding3SmallRequest) GetExtraProperties() map[st
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbedding3SmallRequest) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbedding3SmallRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbedding3SmallRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbedding3SmallRequest
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbedding3SmallRequest(value)
+	*o = OpenAiVectorizerTextEmbedding3SmallRequest(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-3-small" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-3-small", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10445,6 +12651,18 @@ func (o *OpenAiVectorizerTextEmbedding3SmallRequest) UnmarshalJSON(data []byte) 
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbedding3SmallRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbedding3SmallRequest
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-3-small",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbedding3SmallRequest) String() string {
@@ -10461,7 +12679,8 @@ func (o *OpenAiVectorizerTextEmbedding3SmallRequest) String() string {
 
 // OpenAI vectorizer for text-embedding-ada-002.
 type OpenAiVectorizerTextEmbeddingAda002 struct {
-	Config *OpenAiVectorizerConfig `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfig `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10471,15 +12690,28 @@ func (o *OpenAiVectorizerTextEmbeddingAda002) GetExtraProperties() map[string]in
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbeddingAda002) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbeddingAda002) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbeddingAda002
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbeddingAda002
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbeddingAda002(value)
+	*o = OpenAiVectorizerTextEmbeddingAda002(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-ada-002" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-ada-002", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10487,6 +12719,18 @@ func (o *OpenAiVectorizerTextEmbeddingAda002) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbeddingAda002) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbeddingAda002
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-ada-002",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbeddingAda002) String() string {
@@ -10503,7 +12747,8 @@ func (o *OpenAiVectorizerTextEmbeddingAda002) String() string {
 
 // OpenAI vectorizer for text-embedding-ada-002.
 type OpenAiVectorizerTextEmbeddingAda002Request struct {
-	Config *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	Config    *OpenAiVectorizerConfigRequest `json:"config" url:"config"`
+	modelName string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10513,15 +12758,28 @@ func (o *OpenAiVectorizerTextEmbeddingAda002Request) GetExtraProperties() map[st
 	return o.extraProperties
 }
 
+func (o *OpenAiVectorizerTextEmbeddingAda002Request) ModelName() string {
+	return o.modelName
+}
+
 func (o *OpenAiVectorizerTextEmbeddingAda002Request) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenAiVectorizerTextEmbeddingAda002Request
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenAiVectorizerTextEmbeddingAda002Request
+	var unmarshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenAiVectorizerTextEmbeddingAda002Request(value)
+	*o = OpenAiVectorizerTextEmbeddingAda002Request(unmarshaler.embed)
+	if unmarshaler.ModelName != "text-embedding-ada-002" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "text-embedding-ada-002", unmarshaler.ModelName)
+	}
+	o.modelName = unmarshaler.ModelName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "model_name")
 	if err != nil {
 		return err
 	}
@@ -10529,6 +12787,18 @@ func (o *OpenAiVectorizerTextEmbeddingAda002Request) UnmarshalJSON(data []byte) 
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenAiVectorizerTextEmbeddingAda002Request) MarshalJSON() ([]byte, error) {
+	type embed OpenAiVectorizerTextEmbeddingAda002Request
+	var marshaler = struct {
+		embed
+		ModelName string `json:"model_name"`
+	}{
+		embed:     embed(*o),
+		ModelName: "text-embedding-ada-002",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenAiVectorizerTextEmbeddingAda002Request) String() string {
@@ -10556,6 +12826,7 @@ type OpenApiArrayProperty struct {
 	Default     []interface{}      `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string            `json:"title,omitempty" url:"title,omitempty"`
 	Description *string            `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10565,15 +12836,28 @@ func (o *OpenApiArrayProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiArrayProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiArrayProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiArrayProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiArrayProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiArrayProperty(value)
+	*o = OpenApiArrayProperty(unmarshaler.embed)
+	if unmarshaler.Type != "array" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "array", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10581,6 +12865,18 @@ func (o *OpenApiArrayProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiArrayProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiArrayProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "array",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiArrayProperty) String() string {
@@ -10608,6 +12904,7 @@ type OpenApiArrayPropertyRequest struct {
 	Default     []interface{}             `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string                   `json:"title,omitempty" url:"title,omitempty"`
 	Description *string                   `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10617,15 +12914,28 @@ func (o *OpenApiArrayPropertyRequest) GetExtraProperties() map[string]interface{
 	return o.extraProperties
 }
 
+func (o *OpenApiArrayPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiArrayPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiArrayPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiArrayPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiArrayPropertyRequest(value)
+	*o = OpenApiArrayPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "array" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "array", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10633,6 +12943,18 @@ func (o *OpenApiArrayPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiArrayPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiArrayPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "array",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiArrayPropertyRequest) String() string {
@@ -10652,6 +12974,7 @@ type OpenApiBooleanProperty struct {
 	Default     *bool   `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10661,15 +12984,28 @@ func (o *OpenApiBooleanProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiBooleanProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiBooleanProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiBooleanProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiBooleanProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiBooleanProperty(value)
+	*o = OpenApiBooleanProperty(unmarshaler.embed)
+	if unmarshaler.Type != "boolean" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "boolean", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10677,6 +13013,18 @@ func (o *OpenApiBooleanProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiBooleanProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiBooleanProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "boolean",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiBooleanProperty) String() string {
@@ -10696,6 +13044,7 @@ type OpenApiBooleanPropertyRequest struct {
 	Default     *bool   `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10705,15 +13054,28 @@ func (o *OpenApiBooleanPropertyRequest) GetExtraProperties() map[string]interfac
 	return o.extraProperties
 }
 
+func (o *OpenApiBooleanPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiBooleanPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiBooleanPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiBooleanPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiBooleanPropertyRequest(value)
+	*o = OpenApiBooleanPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "boolean" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "boolean", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10721,6 +13083,18 @@ func (o *OpenApiBooleanPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiBooleanPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiBooleanPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "boolean",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiBooleanPropertyRequest) String() string {
@@ -10740,6 +13114,7 @@ type OpenApiConstProperty struct {
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
 	Const       string  `json:"const" url:"const"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10749,15 +13124,28 @@ func (o *OpenApiConstProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiConstProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiConstProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiConstProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiConstProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiConstProperty(value)
+	*o = OpenApiConstProperty(unmarshaler.embed)
+	if unmarshaler.Type != "const" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "const", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10765,6 +13153,18 @@ func (o *OpenApiConstProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiConstProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiConstProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "const",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiConstProperty) String() string {
@@ -10784,6 +13184,7 @@ type OpenApiConstPropertyRequest struct {
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
 	Const       string  `json:"const" url:"const"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10793,15 +13194,28 @@ func (o *OpenApiConstPropertyRequest) GetExtraProperties() map[string]interface{
 	return o.extraProperties
 }
 
+func (o *OpenApiConstPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiConstPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiConstPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiConstPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiConstPropertyRequest(value)
+	*o = OpenApiConstPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "const" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "const", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10809,6 +13223,18 @@ func (o *OpenApiConstPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiConstPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiConstPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "const",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiConstPropertyRequest) String() string {
@@ -10832,6 +13258,7 @@ type OpenApiIntegerProperty struct {
 	Default          *int    `json:"default,omitempty" url:"default,omitempty"`
 	Title            *string `json:"title,omitempty" url:"title,omitempty"`
 	Description      *string `json:"description,omitempty" url:"description,omitempty"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10841,15 +13268,28 @@ func (o *OpenApiIntegerProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiIntegerProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiIntegerProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiIntegerProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiIntegerProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiIntegerProperty(value)
+	*o = OpenApiIntegerProperty(unmarshaler.embed)
+	if unmarshaler.Type != "integer" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "integer", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10857,6 +13297,18 @@ func (o *OpenApiIntegerProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiIntegerProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiIntegerProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "integer",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiIntegerProperty) String() string {
@@ -10880,6 +13332,7 @@ type OpenApiIntegerPropertyRequest struct {
 	Default          *int    `json:"default,omitempty" url:"default,omitempty"`
 	Title            *string `json:"title,omitempty" url:"title,omitempty"`
 	Description      *string `json:"description,omitempty" url:"description,omitempty"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10889,15 +13342,28 @@ func (o *OpenApiIntegerPropertyRequest) GetExtraProperties() map[string]interfac
 	return o.extraProperties
 }
 
+func (o *OpenApiIntegerPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiIntegerPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiIntegerPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiIntegerPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiIntegerPropertyRequest(value)
+	*o = OpenApiIntegerPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "integer" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "integer", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10905,6 +13371,18 @@ func (o *OpenApiIntegerPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiIntegerPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiIntegerPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "integer",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiIntegerPropertyRequest) String() string {
@@ -10929,6 +13407,7 @@ type OpenApiNumberProperty struct {
 	Default          *float64 `json:"default,omitempty" url:"default,omitempty"`
 	Title            *string  `json:"title,omitempty" url:"title,omitempty"`
 	Description      *string  `json:"description,omitempty" url:"description,omitempty"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10938,15 +13417,28 @@ func (o *OpenApiNumberProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiNumberProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiNumberProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiNumberProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiNumberProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiNumberProperty(value)
+	*o = OpenApiNumberProperty(unmarshaler.embed)
+	if unmarshaler.Type != "number" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "number", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -10954,6 +13446,18 @@ func (o *OpenApiNumberProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiNumberProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiNumberProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "number",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiNumberProperty) String() string {
@@ -10978,6 +13482,7 @@ type OpenApiNumberPropertyRequest struct {
 	Default          *float64 `json:"default,omitempty" url:"default,omitempty"`
 	Title            *string  `json:"title,omitempty" url:"title,omitempty"`
 	Description      *string  `json:"description,omitempty" url:"description,omitempty"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -10987,15 +13492,28 @@ func (o *OpenApiNumberPropertyRequest) GetExtraProperties() map[string]interface
 	return o.extraProperties
 }
 
+func (o *OpenApiNumberPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiNumberPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiNumberPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiNumberPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiNumberPropertyRequest(value)
+	*o = OpenApiNumberPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "number" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "number", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11003,6 +13521,18 @@ func (o *OpenApiNumberPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiNumberPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiNumberPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "number",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiNumberPropertyRequest) String() string {
@@ -11029,6 +13559,7 @@ type OpenApiObjectProperty struct {
 	Default              map[string]interface{}      `json:"default,omitempty" url:"default,omitempty"`
 	Title                *string                     `json:"title,omitempty" url:"title,omitempty"`
 	Description          *string                     `json:"description,omitempty" url:"description,omitempty"`
+	type_                string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11038,15 +13569,28 @@ func (o *OpenApiObjectProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiObjectProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiObjectProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiObjectProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiObjectProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiObjectProperty(value)
+	*o = OpenApiObjectProperty(unmarshaler.embed)
+	if unmarshaler.Type != "object" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "object", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11054,6 +13598,18 @@ func (o *OpenApiObjectProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiObjectProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiObjectProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "object",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiObjectProperty) String() string {
@@ -11080,6 +13636,7 @@ type OpenApiObjectPropertyRequest struct {
 	Default              map[string]interface{}             `json:"default,omitempty" url:"default,omitempty"`
 	Title                *string                            `json:"title,omitempty" url:"title,omitempty"`
 	Description          *string                            `json:"description,omitempty" url:"description,omitempty"`
+	type_                string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11089,15 +13646,28 @@ func (o *OpenApiObjectPropertyRequest) GetExtraProperties() map[string]interface
 	return o.extraProperties
 }
 
+func (o *OpenApiObjectPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiObjectPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiObjectPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiObjectPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiObjectPropertyRequest(value)
+	*o = OpenApiObjectPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "object" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "object", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11105,6 +13675,18 @@ func (o *OpenApiObjectPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiObjectPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiObjectPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "object",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiObjectPropertyRequest) String() string {
@@ -11124,6 +13706,7 @@ type OpenApiOneOfProperty struct {
 	OneOf       []*OpenApiProperty `json:"oneOf" url:"oneOf"`
 	Title       *string            `json:"title,omitempty" url:"title,omitempty"`
 	Description *string            `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11133,15 +13716,28 @@ func (o *OpenApiOneOfProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiOneOfProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiOneOfProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiOneOfProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiOneOfProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiOneOfProperty(value)
+	*o = OpenApiOneOfProperty(unmarshaler.embed)
+	if unmarshaler.Type != "oneOf" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "oneOf", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11149,6 +13745,18 @@ func (o *OpenApiOneOfProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiOneOfProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiOneOfProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "oneOf",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiOneOfProperty) String() string {
@@ -11168,6 +13776,7 @@ type OpenApiOneOfPropertyRequest struct {
 	OneOf       []*OpenApiPropertyRequest `json:"oneOf" url:"oneOf"`
 	Title       *string                   `json:"title,omitempty" url:"title,omitempty"`
 	Description *string                   `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11177,15 +13786,28 @@ func (o *OpenApiOneOfPropertyRequest) GetExtraProperties() map[string]interface{
 	return o.extraProperties
 }
 
+func (o *OpenApiOneOfPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiOneOfPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiOneOfPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiOneOfPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiOneOfPropertyRequest(value)
+	*o = OpenApiOneOfPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "oneOf" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "oneOf", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11193,6 +13815,18 @@ func (o *OpenApiOneOfPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiOneOfPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiOneOfPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "oneOf",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiOneOfPropertyRequest) String() string {
@@ -11208,311 +13842,273 @@ func (o *OpenApiOneOfPropertyRequest) String() string {
 }
 
 type OpenApiProperty struct {
-	Type    string
-	Array   *OpenApiArrayProperty
-	Object  *OpenApiObjectProperty
-	Integer *OpenApiIntegerProperty
-	Number  *OpenApiNumberProperty
-	String  *OpenApiStringProperty
-	Boolean *OpenApiBooleanProperty
-	OneOf   *OpenApiOneOfProperty
-	Const   *OpenApiConstProperty
-	Ref     *OpenApiRefProperty
+	OpenApiArrayProperty   *OpenApiArrayProperty
+	OpenApiObjectProperty  *OpenApiObjectProperty
+	OpenApiIntegerProperty *OpenApiIntegerProperty
+	OpenApiNumberProperty  *OpenApiNumberProperty
+	OpenApiStringProperty  *OpenApiStringProperty
+	OpenApiBooleanProperty *OpenApiBooleanProperty
+	OpenApiOneOfProperty   *OpenApiOneOfProperty
+	OpenApiConstProperty   *OpenApiConstProperty
+	OpenApiRefProperty     *OpenApiRefProperty
 }
 
 func (o *OpenApiProperty) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueOpenApiArrayProperty := new(OpenApiArrayProperty)
+	if err := json.Unmarshal(data, &valueOpenApiArrayProperty); err == nil {
+		o.OpenApiArrayProperty = valueOpenApiArrayProperty
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueOpenApiObjectProperty := new(OpenApiObjectProperty)
+	if err := json.Unmarshal(data, &valueOpenApiObjectProperty); err == nil {
+		o.OpenApiObjectProperty = valueOpenApiObjectProperty
+		return nil
 	}
-	o.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "array":
-		value := new(OpenApiArrayProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Array = value
-	case "object":
-		value := new(OpenApiObjectProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Object = value
-	case "integer":
-		value := new(OpenApiIntegerProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Integer = value
-	case "number":
-		value := new(OpenApiNumberProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Number = value
-	case "string":
-		value := new(OpenApiStringProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.String = value
-	case "boolean":
-		value := new(OpenApiBooleanProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Boolean = value
-	case "oneOf":
-		value := new(OpenApiOneOfProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.OneOf = value
-	case "const":
-		value := new(OpenApiConstProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Const = value
-	case "ref":
-		value := new(OpenApiRefProperty)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Ref = value
+	valueOpenApiIntegerProperty := new(OpenApiIntegerProperty)
+	if err := json.Unmarshal(data, &valueOpenApiIntegerProperty); err == nil {
+		o.OpenApiIntegerProperty = valueOpenApiIntegerProperty
+		return nil
 	}
-	return nil
+	valueOpenApiNumberProperty := new(OpenApiNumberProperty)
+	if err := json.Unmarshal(data, &valueOpenApiNumberProperty); err == nil {
+		o.OpenApiNumberProperty = valueOpenApiNumberProperty
+		return nil
+	}
+	valueOpenApiStringProperty := new(OpenApiStringProperty)
+	if err := json.Unmarshal(data, &valueOpenApiStringProperty); err == nil {
+		o.OpenApiStringProperty = valueOpenApiStringProperty
+		return nil
+	}
+	valueOpenApiBooleanProperty := new(OpenApiBooleanProperty)
+	if err := json.Unmarshal(data, &valueOpenApiBooleanProperty); err == nil {
+		o.OpenApiBooleanProperty = valueOpenApiBooleanProperty
+		return nil
+	}
+	valueOpenApiOneOfProperty := new(OpenApiOneOfProperty)
+	if err := json.Unmarshal(data, &valueOpenApiOneOfProperty); err == nil {
+		o.OpenApiOneOfProperty = valueOpenApiOneOfProperty
+		return nil
+	}
+	valueOpenApiConstProperty := new(OpenApiConstProperty)
+	if err := json.Unmarshal(data, &valueOpenApiConstProperty); err == nil {
+		o.OpenApiConstProperty = valueOpenApiConstProperty
+		return nil
+	}
+	valueOpenApiRefProperty := new(OpenApiRefProperty)
+	if err := json.Unmarshal(data, &valueOpenApiRefProperty); err == nil {
+		o.OpenApiRefProperty = valueOpenApiRefProperty
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, o)
 }
 
 func (o OpenApiProperty) MarshalJSON() ([]byte, error) {
-	if o.Array != nil {
-		return core.MarshalJSONWithExtraProperty(o.Array, "type", "array")
+	if o.OpenApiArrayProperty != nil {
+		return json.Marshal(o.OpenApiArrayProperty)
 	}
-	if o.Object != nil {
-		return core.MarshalJSONWithExtraProperty(o.Object, "type", "object")
+	if o.OpenApiObjectProperty != nil {
+		return json.Marshal(o.OpenApiObjectProperty)
 	}
-	if o.Integer != nil {
-		return core.MarshalJSONWithExtraProperty(o.Integer, "type", "integer")
+	if o.OpenApiIntegerProperty != nil {
+		return json.Marshal(o.OpenApiIntegerProperty)
 	}
-	if o.Number != nil {
-		return core.MarshalJSONWithExtraProperty(o.Number, "type", "number")
+	if o.OpenApiNumberProperty != nil {
+		return json.Marshal(o.OpenApiNumberProperty)
 	}
-	if o.String != nil {
-		return core.MarshalJSONWithExtraProperty(o.String, "type", "string")
+	if o.OpenApiStringProperty != nil {
+		return json.Marshal(o.OpenApiStringProperty)
 	}
-	if o.Boolean != nil {
-		return core.MarshalJSONWithExtraProperty(o.Boolean, "type", "boolean")
+	if o.OpenApiBooleanProperty != nil {
+		return json.Marshal(o.OpenApiBooleanProperty)
 	}
-	if o.OneOf != nil {
-		return core.MarshalJSONWithExtraProperty(o.OneOf, "type", "oneOf")
+	if o.OpenApiOneOfProperty != nil {
+		return json.Marshal(o.OpenApiOneOfProperty)
 	}
-	if o.Const != nil {
-		return core.MarshalJSONWithExtraProperty(o.Const, "type", "const")
+	if o.OpenApiConstProperty != nil {
+		return json.Marshal(o.OpenApiConstProperty)
 	}
-	if o.Ref != nil {
-		return core.MarshalJSONWithExtraProperty(o.Ref, "type", "ref")
+	if o.OpenApiRefProperty != nil {
+		return json.Marshal(o.OpenApiRefProperty)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", o)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", o)
 }
 
 type OpenApiPropertyVisitor interface {
-	VisitArray(*OpenApiArrayProperty) error
-	VisitObject(*OpenApiObjectProperty) error
-	VisitInteger(*OpenApiIntegerProperty) error
-	VisitNumber(*OpenApiNumberProperty) error
-	VisitString(*OpenApiStringProperty) error
-	VisitBoolean(*OpenApiBooleanProperty) error
-	VisitOneOf(*OpenApiOneOfProperty) error
-	VisitConst(*OpenApiConstProperty) error
-	VisitRef(*OpenApiRefProperty) error
+	VisitOpenApiArrayProperty(*OpenApiArrayProperty) error
+	VisitOpenApiObjectProperty(*OpenApiObjectProperty) error
+	VisitOpenApiIntegerProperty(*OpenApiIntegerProperty) error
+	VisitOpenApiNumberProperty(*OpenApiNumberProperty) error
+	VisitOpenApiStringProperty(*OpenApiStringProperty) error
+	VisitOpenApiBooleanProperty(*OpenApiBooleanProperty) error
+	VisitOpenApiOneOfProperty(*OpenApiOneOfProperty) error
+	VisitOpenApiConstProperty(*OpenApiConstProperty) error
+	VisitOpenApiRefProperty(*OpenApiRefProperty) error
 }
 
 func (o *OpenApiProperty) Accept(visitor OpenApiPropertyVisitor) error {
-	if o.Array != nil {
-		return visitor.VisitArray(o.Array)
+	if o.OpenApiArrayProperty != nil {
+		return visitor.VisitOpenApiArrayProperty(o.OpenApiArrayProperty)
 	}
-	if o.Object != nil {
-		return visitor.VisitObject(o.Object)
+	if o.OpenApiObjectProperty != nil {
+		return visitor.VisitOpenApiObjectProperty(o.OpenApiObjectProperty)
 	}
-	if o.Integer != nil {
-		return visitor.VisitInteger(o.Integer)
+	if o.OpenApiIntegerProperty != nil {
+		return visitor.VisitOpenApiIntegerProperty(o.OpenApiIntegerProperty)
 	}
-	if o.Number != nil {
-		return visitor.VisitNumber(o.Number)
+	if o.OpenApiNumberProperty != nil {
+		return visitor.VisitOpenApiNumberProperty(o.OpenApiNumberProperty)
 	}
-	if o.String != nil {
-		return visitor.VisitString(o.String)
+	if o.OpenApiStringProperty != nil {
+		return visitor.VisitOpenApiStringProperty(o.OpenApiStringProperty)
 	}
-	if o.Boolean != nil {
-		return visitor.VisitBoolean(o.Boolean)
+	if o.OpenApiBooleanProperty != nil {
+		return visitor.VisitOpenApiBooleanProperty(o.OpenApiBooleanProperty)
 	}
-	if o.OneOf != nil {
-		return visitor.VisitOneOf(o.OneOf)
+	if o.OpenApiOneOfProperty != nil {
+		return visitor.VisitOpenApiOneOfProperty(o.OpenApiOneOfProperty)
 	}
-	if o.Const != nil {
-		return visitor.VisitConst(o.Const)
+	if o.OpenApiConstProperty != nil {
+		return visitor.VisitOpenApiConstProperty(o.OpenApiConstProperty)
 	}
-	if o.Ref != nil {
-		return visitor.VisitRef(o.Ref)
+	if o.OpenApiRefProperty != nil {
+		return visitor.VisitOpenApiRefProperty(o.OpenApiRefProperty)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", o)
+	return fmt.Errorf("type %T does not include a non-empty union type", o)
 }
 
 type OpenApiPropertyRequest struct {
-	Type    string
-	Array   *OpenApiArrayPropertyRequest
-	Object  *OpenApiObjectPropertyRequest
-	Integer *OpenApiIntegerPropertyRequest
-	Number  *OpenApiNumberPropertyRequest
-	String  *OpenApiStringPropertyRequest
-	Boolean *OpenApiBooleanPropertyRequest
-	OneOf   *OpenApiOneOfPropertyRequest
-	Const   *OpenApiConstPropertyRequest
-	Ref     *OpenApiRefPropertyRequest
+	OpenApiArrayPropertyRequest   *OpenApiArrayPropertyRequest
+	OpenApiObjectPropertyRequest  *OpenApiObjectPropertyRequest
+	OpenApiIntegerPropertyRequest *OpenApiIntegerPropertyRequest
+	OpenApiNumberPropertyRequest  *OpenApiNumberPropertyRequest
+	OpenApiStringPropertyRequest  *OpenApiStringPropertyRequest
+	OpenApiBooleanPropertyRequest *OpenApiBooleanPropertyRequest
+	OpenApiOneOfPropertyRequest   *OpenApiOneOfPropertyRequest
+	OpenApiConstPropertyRequest   *OpenApiConstPropertyRequest
+	OpenApiRefPropertyRequest     *OpenApiRefPropertyRequest
 }
 
 func (o *OpenApiPropertyRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueOpenApiArrayPropertyRequest := new(OpenApiArrayPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiArrayPropertyRequest); err == nil {
+		o.OpenApiArrayPropertyRequest = valueOpenApiArrayPropertyRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueOpenApiObjectPropertyRequest := new(OpenApiObjectPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiObjectPropertyRequest); err == nil {
+		o.OpenApiObjectPropertyRequest = valueOpenApiObjectPropertyRequest
+		return nil
 	}
-	o.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "array":
-		value := new(OpenApiArrayPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Array = value
-	case "object":
-		value := new(OpenApiObjectPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Object = value
-	case "integer":
-		value := new(OpenApiIntegerPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Integer = value
-	case "number":
-		value := new(OpenApiNumberPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Number = value
-	case "string":
-		value := new(OpenApiStringPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.String = value
-	case "boolean":
-		value := new(OpenApiBooleanPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Boolean = value
-	case "oneOf":
-		value := new(OpenApiOneOfPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.OneOf = value
-	case "const":
-		value := new(OpenApiConstPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Const = value
-	case "ref":
-		value := new(OpenApiRefPropertyRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		o.Ref = value
+	valueOpenApiIntegerPropertyRequest := new(OpenApiIntegerPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiIntegerPropertyRequest); err == nil {
+		o.OpenApiIntegerPropertyRequest = valueOpenApiIntegerPropertyRequest
+		return nil
 	}
-	return nil
+	valueOpenApiNumberPropertyRequest := new(OpenApiNumberPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiNumberPropertyRequest); err == nil {
+		o.OpenApiNumberPropertyRequest = valueOpenApiNumberPropertyRequest
+		return nil
+	}
+	valueOpenApiStringPropertyRequest := new(OpenApiStringPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiStringPropertyRequest); err == nil {
+		o.OpenApiStringPropertyRequest = valueOpenApiStringPropertyRequest
+		return nil
+	}
+	valueOpenApiBooleanPropertyRequest := new(OpenApiBooleanPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiBooleanPropertyRequest); err == nil {
+		o.OpenApiBooleanPropertyRequest = valueOpenApiBooleanPropertyRequest
+		return nil
+	}
+	valueOpenApiOneOfPropertyRequest := new(OpenApiOneOfPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiOneOfPropertyRequest); err == nil {
+		o.OpenApiOneOfPropertyRequest = valueOpenApiOneOfPropertyRequest
+		return nil
+	}
+	valueOpenApiConstPropertyRequest := new(OpenApiConstPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiConstPropertyRequest); err == nil {
+		o.OpenApiConstPropertyRequest = valueOpenApiConstPropertyRequest
+		return nil
+	}
+	valueOpenApiRefPropertyRequest := new(OpenApiRefPropertyRequest)
+	if err := json.Unmarshal(data, &valueOpenApiRefPropertyRequest); err == nil {
+		o.OpenApiRefPropertyRequest = valueOpenApiRefPropertyRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, o)
 }
 
 func (o OpenApiPropertyRequest) MarshalJSON() ([]byte, error) {
-	if o.Array != nil {
-		return core.MarshalJSONWithExtraProperty(o.Array, "type", "array")
+	if o.OpenApiArrayPropertyRequest != nil {
+		return json.Marshal(o.OpenApiArrayPropertyRequest)
 	}
-	if o.Object != nil {
-		return core.MarshalJSONWithExtraProperty(o.Object, "type", "object")
+	if o.OpenApiObjectPropertyRequest != nil {
+		return json.Marshal(o.OpenApiObjectPropertyRequest)
 	}
-	if o.Integer != nil {
-		return core.MarshalJSONWithExtraProperty(o.Integer, "type", "integer")
+	if o.OpenApiIntegerPropertyRequest != nil {
+		return json.Marshal(o.OpenApiIntegerPropertyRequest)
 	}
-	if o.Number != nil {
-		return core.MarshalJSONWithExtraProperty(o.Number, "type", "number")
+	if o.OpenApiNumberPropertyRequest != nil {
+		return json.Marshal(o.OpenApiNumberPropertyRequest)
 	}
-	if o.String != nil {
-		return core.MarshalJSONWithExtraProperty(o.String, "type", "string")
+	if o.OpenApiStringPropertyRequest != nil {
+		return json.Marshal(o.OpenApiStringPropertyRequest)
 	}
-	if o.Boolean != nil {
-		return core.MarshalJSONWithExtraProperty(o.Boolean, "type", "boolean")
+	if o.OpenApiBooleanPropertyRequest != nil {
+		return json.Marshal(o.OpenApiBooleanPropertyRequest)
 	}
-	if o.OneOf != nil {
-		return core.MarshalJSONWithExtraProperty(o.OneOf, "type", "oneOf")
+	if o.OpenApiOneOfPropertyRequest != nil {
+		return json.Marshal(o.OpenApiOneOfPropertyRequest)
 	}
-	if o.Const != nil {
-		return core.MarshalJSONWithExtraProperty(o.Const, "type", "const")
+	if o.OpenApiConstPropertyRequest != nil {
+		return json.Marshal(o.OpenApiConstPropertyRequest)
 	}
-	if o.Ref != nil {
-		return core.MarshalJSONWithExtraProperty(o.Ref, "type", "ref")
+	if o.OpenApiRefPropertyRequest != nil {
+		return json.Marshal(o.OpenApiRefPropertyRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", o)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", o)
 }
 
 type OpenApiPropertyRequestVisitor interface {
-	VisitArray(*OpenApiArrayPropertyRequest) error
-	VisitObject(*OpenApiObjectPropertyRequest) error
-	VisitInteger(*OpenApiIntegerPropertyRequest) error
-	VisitNumber(*OpenApiNumberPropertyRequest) error
-	VisitString(*OpenApiStringPropertyRequest) error
-	VisitBoolean(*OpenApiBooleanPropertyRequest) error
-	VisitOneOf(*OpenApiOneOfPropertyRequest) error
-	VisitConst(*OpenApiConstPropertyRequest) error
-	VisitRef(*OpenApiRefPropertyRequest) error
+	VisitOpenApiArrayPropertyRequest(*OpenApiArrayPropertyRequest) error
+	VisitOpenApiObjectPropertyRequest(*OpenApiObjectPropertyRequest) error
+	VisitOpenApiIntegerPropertyRequest(*OpenApiIntegerPropertyRequest) error
+	VisitOpenApiNumberPropertyRequest(*OpenApiNumberPropertyRequest) error
+	VisitOpenApiStringPropertyRequest(*OpenApiStringPropertyRequest) error
+	VisitOpenApiBooleanPropertyRequest(*OpenApiBooleanPropertyRequest) error
+	VisitOpenApiOneOfPropertyRequest(*OpenApiOneOfPropertyRequest) error
+	VisitOpenApiConstPropertyRequest(*OpenApiConstPropertyRequest) error
+	VisitOpenApiRefPropertyRequest(*OpenApiRefPropertyRequest) error
 }
 
 func (o *OpenApiPropertyRequest) Accept(visitor OpenApiPropertyRequestVisitor) error {
-	if o.Array != nil {
-		return visitor.VisitArray(o.Array)
+	if o.OpenApiArrayPropertyRequest != nil {
+		return visitor.VisitOpenApiArrayPropertyRequest(o.OpenApiArrayPropertyRequest)
 	}
-	if o.Object != nil {
-		return visitor.VisitObject(o.Object)
+	if o.OpenApiObjectPropertyRequest != nil {
+		return visitor.VisitOpenApiObjectPropertyRequest(o.OpenApiObjectPropertyRequest)
 	}
-	if o.Integer != nil {
-		return visitor.VisitInteger(o.Integer)
+	if o.OpenApiIntegerPropertyRequest != nil {
+		return visitor.VisitOpenApiIntegerPropertyRequest(o.OpenApiIntegerPropertyRequest)
 	}
-	if o.Number != nil {
-		return visitor.VisitNumber(o.Number)
+	if o.OpenApiNumberPropertyRequest != nil {
+		return visitor.VisitOpenApiNumberPropertyRequest(o.OpenApiNumberPropertyRequest)
 	}
-	if o.String != nil {
-		return visitor.VisitString(o.String)
+	if o.OpenApiStringPropertyRequest != nil {
+		return visitor.VisitOpenApiStringPropertyRequest(o.OpenApiStringPropertyRequest)
 	}
-	if o.Boolean != nil {
-		return visitor.VisitBoolean(o.Boolean)
+	if o.OpenApiBooleanPropertyRequest != nil {
+		return visitor.VisitOpenApiBooleanPropertyRequest(o.OpenApiBooleanPropertyRequest)
 	}
-	if o.OneOf != nil {
-		return visitor.VisitOneOf(o.OneOf)
+	if o.OpenApiOneOfPropertyRequest != nil {
+		return visitor.VisitOpenApiOneOfPropertyRequest(o.OpenApiOneOfPropertyRequest)
 	}
-	if o.Const != nil {
-		return visitor.VisitConst(o.Const)
+	if o.OpenApiConstPropertyRequest != nil {
+		return visitor.VisitOpenApiConstPropertyRequest(o.OpenApiConstPropertyRequest)
 	}
-	if o.Ref != nil {
-		return visitor.VisitRef(o.Ref)
+	if o.OpenApiRefPropertyRequest != nil {
+		return visitor.VisitOpenApiRefPropertyRequest(o.OpenApiRefPropertyRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", o)
+	return fmt.Errorf("type %T does not include a non-empty union type", o)
 }
 
 // An OpenAPI specification of a property that is a URI-reference to another schema
@@ -11520,6 +14116,7 @@ type OpenApiRefProperty struct {
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
 	Ref         string  `json:"ref" url:"ref"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11529,15 +14126,28 @@ func (o *OpenApiRefProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiRefProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiRefProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiRefProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiRefProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiRefProperty(value)
+	*o = OpenApiRefProperty(unmarshaler.embed)
+	if unmarshaler.Type != "ref" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "ref", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11545,6 +14155,18 @@ func (o *OpenApiRefProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiRefProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiRefProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "ref",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiRefProperty) String() string {
@@ -11564,6 +14186,7 @@ type OpenApiRefPropertyRequest struct {
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
 	Ref         string  `json:"ref" url:"ref"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11573,15 +14196,28 @@ func (o *OpenApiRefPropertyRequest) GetExtraProperties() map[string]interface{} 
 	return o.extraProperties
 }
 
+func (o *OpenApiRefPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiRefPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiRefPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiRefPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiRefPropertyRequest(value)
+	*o = OpenApiRefPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "ref" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "ref", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11589,6 +14225,18 @@ func (o *OpenApiRefPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiRefPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiRefPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "ref",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiRefPropertyRequest) String() string {
@@ -11612,6 +14260,7 @@ type OpenApiStringProperty struct {
 	Default     *string `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11621,15 +14270,28 @@ func (o *OpenApiStringProperty) GetExtraProperties() map[string]interface{} {
 	return o.extraProperties
 }
 
+func (o *OpenApiStringProperty) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiStringProperty) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiStringProperty
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiStringProperty
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiStringProperty(value)
+	*o = OpenApiStringProperty(unmarshaler.embed)
+	if unmarshaler.Type != "string" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "string", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11637,6 +14299,18 @@ func (o *OpenApiStringProperty) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiStringProperty) MarshalJSON() ([]byte, error) {
+	type embed OpenApiStringProperty
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "string",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiStringProperty) String() string {
@@ -11660,6 +14334,7 @@ type OpenApiStringPropertyRequest struct {
 	Default     *string `json:"default,omitempty" url:"default,omitempty"`
 	Title       *string `json:"title,omitempty" url:"title,omitempty"`
 	Description *string `json:"description,omitempty" url:"description,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -11669,15 +14344,28 @@ func (o *OpenApiStringPropertyRequest) GetExtraProperties() map[string]interface
 	return o.extraProperties
 }
 
+func (o *OpenApiStringPropertyRequest) Type() string {
+	return o.type_
+}
+
 func (o *OpenApiStringPropertyRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler OpenApiStringPropertyRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed OpenApiStringPropertyRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*o = OpenApiStringPropertyRequest(value)
+	*o = OpenApiStringPropertyRequest(unmarshaler.embed)
+	if unmarshaler.Type != "string" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", o, "string", unmarshaler.Type)
+	}
+	o.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *o)
+	extraProperties, err := core.ExtractExtraProperties(data, *o, "type")
 	if err != nil {
 		return err
 	}
@@ -11685,6 +14373,18 @@ func (o *OpenApiStringPropertyRequest) UnmarshalJSON(data []byte) error {
 
 	o._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (o *OpenApiStringPropertyRequest) MarshalJSON() ([]byte, error) {
+	type embed OpenApiStringPropertyRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*o),
+		Type:  "string",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (o *OpenApiStringPropertyRequest) String() string {
@@ -12012,7 +14712,8 @@ type PdfSearchResultMetaSource struct {
 	// The 1-indexed page number where the chunk starts in the document. Only available for supported chunking strategies and document types.
 	StartPageNum *int `json:"start_page_num,omitempty" url:"start_page_num,omitempty"`
 	// The 1-indexed page number where the chunk ends in the document. Only available for supported chunking strategies and document types.
-	EndPageNum *int `json:"end_page_num,omitempty" url:"end_page_num,omitempty"`
+	EndPageNum   *int `json:"end_page_num,omitempty" url:"end_page_num,omitempty"`
+	documentType string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12022,15 +14723,28 @@ func (p *PdfSearchResultMetaSource) GetExtraProperties() map[string]interface{} 
 	return p.extraProperties
 }
 
+func (p *PdfSearchResultMetaSource) DocumentType() string {
+	return p.documentType
+}
+
 func (p *PdfSearchResultMetaSource) UnmarshalJSON(data []byte) error {
-	type unmarshaler PdfSearchResultMetaSource
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed PdfSearchResultMetaSource
+	var unmarshaler = struct {
+		embed
+		DocumentType string `json:"document_type"`
+	}{
+		embed: embed(*p),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*p = PdfSearchResultMetaSource(value)
+	*p = PdfSearchResultMetaSource(unmarshaler.embed)
+	if unmarshaler.DocumentType != "PDF" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", p, "PDF", unmarshaler.DocumentType)
+	}
+	p.documentType = unmarshaler.DocumentType
 
-	extraProperties, err := core.ExtractExtraProperties(data, *p)
+	extraProperties, err := core.ExtractExtraProperties(data, *p, "document_type")
 	if err != nil {
 		return err
 	}
@@ -12038,6 +14752,18 @@ func (p *PdfSearchResultMetaSource) UnmarshalJSON(data []byte) error {
 
 	p._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (p *PdfSearchResultMetaSource) MarshalJSON() ([]byte, error) {
+	type embed PdfSearchResultMetaSource
+	var marshaler = struct {
+		embed
+		DocumentType string `json:"document_type"`
+	}{
+		embed:        embed(*p),
+		DocumentType: "PDF",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (p *PdfSearchResultMetaSource) String() string {
@@ -12057,7 +14783,8 @@ type PdfSearchResultMetaSourceRequest struct {
 	// The 1-indexed page number where the chunk starts in the document. Only available for supported chunking strategies and document types.
 	StartPageNum *int `json:"start_page_num,omitempty" url:"start_page_num,omitempty"`
 	// The 1-indexed page number where the chunk ends in the document. Only available for supported chunking strategies and document types.
-	EndPageNum *int `json:"end_page_num,omitempty" url:"end_page_num,omitempty"`
+	EndPageNum   *int `json:"end_page_num,omitempty" url:"end_page_num,omitempty"`
+	documentType string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12067,15 +14794,28 @@ func (p *PdfSearchResultMetaSourceRequest) GetExtraProperties() map[string]inter
 	return p.extraProperties
 }
 
+func (p *PdfSearchResultMetaSourceRequest) DocumentType() string {
+	return p.documentType
+}
+
 func (p *PdfSearchResultMetaSourceRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler PdfSearchResultMetaSourceRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed PdfSearchResultMetaSourceRequest
+	var unmarshaler = struct {
+		embed
+		DocumentType string `json:"document_type"`
+	}{
+		embed: embed(*p),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*p = PdfSearchResultMetaSourceRequest(value)
+	*p = PdfSearchResultMetaSourceRequest(unmarshaler.embed)
+	if unmarshaler.DocumentType != "PDF" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", p, "PDF", unmarshaler.DocumentType)
+	}
+	p.documentType = unmarshaler.DocumentType
 
-	extraProperties, err := core.ExtractExtraProperties(data, *p)
+	extraProperties, err := core.ExtractExtraProperties(data, *p, "document_type")
 	if err != nil {
 		return err
 	}
@@ -12083,6 +14823,18 @@ func (p *PdfSearchResultMetaSourceRequest) UnmarshalJSON(data []byte) error {
 
 	p._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (p *PdfSearchResultMetaSourceRequest) MarshalJSON() ([]byte, error) {
+	type embed PdfSearchResultMetaSourceRequest
+	var marshaler = struct {
+		embed
+		DocumentType string `json:"document_type"`
+	}{
+		embed:        embed(*p),
+		DocumentType: "PDF",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (p *PdfSearchResultMetaSourceRequest) String() string {
@@ -12206,73 +14958,60 @@ func (p *PromptDeploymentExpandMetaRequestRequest) String() string {
 }
 
 type PromptDeploymentInputRequest struct {
-	Type        string
-	String      *StringInputRequest
-	Json        *JsonInputRequest
-	ChatHistory *ChatHistoryInputRequest
+	StringInputRequest      *StringInputRequest
+	JsonInputRequest        *JsonInputRequest
+	ChatHistoryInputRequest *ChatHistoryInputRequest
 }
 
 func (p *PromptDeploymentInputRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringInputRequest := new(StringInputRequest)
+	if err := json.Unmarshal(data, &valueStringInputRequest); err == nil {
+		p.StringInputRequest = valueStringInputRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueJsonInputRequest := new(JsonInputRequest)
+	if err := json.Unmarshal(data, &valueJsonInputRequest); err == nil {
+		p.JsonInputRequest = valueJsonInputRequest
+		return nil
 	}
-	p.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.String = value
-	case "JSON":
-		value := new(JsonInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.Json = value
-	case "CHAT_HISTORY":
-		value := new(ChatHistoryInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.ChatHistory = value
+	valueChatHistoryInputRequest := new(ChatHistoryInputRequest)
+	if err := json.Unmarshal(data, &valueChatHistoryInputRequest); err == nil {
+		p.ChatHistoryInputRequest = valueChatHistoryInputRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, p)
 }
 
 func (p PromptDeploymentInputRequest) MarshalJSON() ([]byte, error) {
-	if p.String != nil {
-		return core.MarshalJSONWithExtraProperty(p.String, "type", "STRING")
+	if p.StringInputRequest != nil {
+		return json.Marshal(p.StringInputRequest)
 	}
-	if p.Json != nil {
-		return core.MarshalJSONWithExtraProperty(p.Json, "type", "JSON")
+	if p.JsonInputRequest != nil {
+		return json.Marshal(p.JsonInputRequest)
 	}
-	if p.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(p.ChatHistory, "type", "CHAT_HISTORY")
+	if p.ChatHistoryInputRequest != nil {
+		return json.Marshal(p.ChatHistoryInputRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", p)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", p)
 }
 
 type PromptDeploymentInputRequestVisitor interface {
-	VisitString(*StringInputRequest) error
-	VisitJson(*JsonInputRequest) error
-	VisitChatHistory(*ChatHistoryInputRequest) error
+	VisitStringInputRequest(*StringInputRequest) error
+	VisitJsonInputRequest(*JsonInputRequest) error
+	VisitChatHistoryInputRequest(*ChatHistoryInputRequest) error
 }
 
 func (p *PromptDeploymentInputRequest) Accept(visitor PromptDeploymentInputRequestVisitor) error {
-	if p.String != nil {
-		return visitor.VisitString(p.String)
+	if p.StringInputRequest != nil {
+		return visitor.VisitStringInputRequest(p.StringInputRequest)
 	}
-	if p.Json != nil {
-		return visitor.VisitJson(p.Json)
+	if p.JsonInputRequest != nil {
+		return visitor.VisitJsonInputRequest(p.JsonInputRequest)
 	}
-	if p.ChatHistory != nil {
-		return visitor.VisitChatHistory(p.ChatHistory)
+	if p.ChatHistoryInputRequest != nil {
+		return visitor.VisitChatHistoryInputRequest(p.ChatHistoryInputRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", p)
+	return fmt.Errorf("type %T does not include a non-empty union type", p)
 }
 
 // The subset of the metadata tracked by Vellum during prompt execution that the request opted into with `expand_meta`.
@@ -12366,7 +15105,8 @@ func (p *PromptNodeExecutionMeta) String() string {
 
 // A Node Result Event emitted from a Prompt Node.
 type PromptNodeResult struct {
-	Data *PromptNodeResultData `json:"data" url:"data"`
+	Data  *PromptNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12376,15 +15116,28 @@ func (p *PromptNodeResult) GetExtraProperties() map[string]interface{} {
 	return p.extraProperties
 }
 
+func (p *PromptNodeResult) Type() string {
+	return p.type_
+}
+
 func (p *PromptNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler PromptNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed PromptNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*p),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*p = PromptNodeResult(value)
+	*p = PromptNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "PROMPT" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", p, "PROMPT", unmarshaler.Type)
+	}
+	p.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *p)
+	extraProperties, err := core.ExtractExtraProperties(data, *p, "type")
 	if err != nil {
 		return err
 	}
@@ -12392,6 +15145,18 @@ func (p *PromptNodeResult) UnmarshalJSON(data []byte) error {
 
 	p._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (p *PromptNodeResult) MarshalJSON() ([]byte, error) {
+	type embed PromptNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*p),
+		Type:  "PROMPT",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (p *PromptNodeResult) String() string {
@@ -12453,87 +15218,73 @@ func (p *PromptNodeResultData) String() string {
 }
 
 type PromptOutput struct {
-	Type         string
-	String       *StringVellumValue
-	Json         *JsonVellumValue
-	Error        *ErrorVellumValue
-	FunctionCall *FunctionCallVellumValue
+	StringVellumValue       *StringVellumValue
+	JsonVellumValue         *JsonVellumValue
+	ErrorVellumValue        *ErrorVellumValue
+	FunctionCallVellumValue *FunctionCallVellumValue
 }
 
 func (p *PromptOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueStringVellumValue := new(StringVellumValue)
+	if err := json.Unmarshal(data, &valueStringVellumValue); err == nil {
+		p.StringVellumValue = valueStringVellumValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueJsonVellumValue := new(JsonVellumValue)
+	if err := json.Unmarshal(data, &valueJsonVellumValue); err == nil {
+		p.JsonVellumValue = valueJsonVellumValue
+		return nil
 	}
-	p.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(StringVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.String = value
-	case "JSON":
-		value := new(JsonVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.Json = value
-	case "ERROR":
-		value := new(ErrorVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.Error = value
-	case "FUNCTION_CALL":
-		value := new(FunctionCallVellumValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		p.FunctionCall = value
+	valueErrorVellumValue := new(ErrorVellumValue)
+	if err := json.Unmarshal(data, &valueErrorVellumValue); err == nil {
+		p.ErrorVellumValue = valueErrorVellumValue
+		return nil
 	}
-	return nil
+	valueFunctionCallVellumValue := new(FunctionCallVellumValue)
+	if err := json.Unmarshal(data, &valueFunctionCallVellumValue); err == nil {
+		p.FunctionCallVellumValue = valueFunctionCallVellumValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, p)
 }
 
 func (p PromptOutput) MarshalJSON() ([]byte, error) {
-	if p.String != nil {
-		return core.MarshalJSONWithExtraProperty(p.String, "type", "STRING")
+	if p.StringVellumValue != nil {
+		return json.Marshal(p.StringVellumValue)
 	}
-	if p.Json != nil {
-		return core.MarshalJSONWithExtraProperty(p.Json, "type", "JSON")
+	if p.JsonVellumValue != nil {
+		return json.Marshal(p.JsonVellumValue)
 	}
-	if p.Error != nil {
-		return core.MarshalJSONWithExtraProperty(p.Error, "type", "ERROR")
+	if p.ErrorVellumValue != nil {
+		return json.Marshal(p.ErrorVellumValue)
 	}
-	if p.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(p.FunctionCall, "type", "FUNCTION_CALL")
+	if p.FunctionCallVellumValue != nil {
+		return json.Marshal(p.FunctionCallVellumValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", p)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", p)
 }
 
 type PromptOutputVisitor interface {
-	VisitString(*StringVellumValue) error
-	VisitJson(*JsonVellumValue) error
-	VisitError(*ErrorVellumValue) error
-	VisitFunctionCall(*FunctionCallVellumValue) error
+	VisitStringVellumValue(*StringVellumValue) error
+	VisitJsonVellumValue(*JsonVellumValue) error
+	VisitErrorVellumValue(*ErrorVellumValue) error
+	VisitFunctionCallVellumValue(*FunctionCallVellumValue) error
 }
 
 func (p *PromptOutput) Accept(visitor PromptOutputVisitor) error {
-	if p.String != nil {
-		return visitor.VisitString(p.String)
+	if p.StringVellumValue != nil {
+		return visitor.VisitStringVellumValue(p.StringVellumValue)
 	}
-	if p.Json != nil {
-		return visitor.VisitJson(p.Json)
+	if p.JsonVellumValue != nil {
+		return visitor.VisitJsonVellumValue(p.JsonVellumValue)
 	}
-	if p.Error != nil {
-		return visitor.VisitError(p.Error)
+	if p.ErrorVellumValue != nil {
+		return visitor.VisitErrorVellumValue(p.ErrorVellumValue)
 	}
-	if p.FunctionCall != nil {
-		return visitor.VisitFunctionCall(p.FunctionCall)
+	if p.FunctionCallVellumValue != nil {
+		return visitor.VisitFunctionCallVellumValue(p.FunctionCallVellumValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", p)
+	return fmt.Errorf("type %T does not include a non-empty union type", p)
 }
 
 type RawPromptExecutionOverridesRequest struct {
@@ -12668,6 +15419,7 @@ func (r *ReductoChunkerConfigRequest) String() string {
 // Reducto chunking
 type ReductoChunking struct {
 	ChunkerConfig *ReductoChunkerConfig `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12677,15 +15429,28 @@ func (r *ReductoChunking) GetExtraProperties() map[string]interface{} {
 	return r.extraProperties
 }
 
+func (r *ReductoChunking) ChunkerName() string {
+	return r.chunkerName
+}
+
 func (r *ReductoChunking) UnmarshalJSON(data []byte) error {
-	type unmarshaler ReductoChunking
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ReductoChunking
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*r),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*r = ReductoChunking(value)
+	*r = ReductoChunking(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "reducto-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "reducto-chunker", unmarshaler.ChunkerName)
+	}
+	r.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -12693,6 +15458,18 @@ func (r *ReductoChunking) UnmarshalJSON(data []byte) error {
 
 	r._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (r *ReductoChunking) MarshalJSON() ([]byte, error) {
+	type embed ReductoChunking
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*r),
+		ChunkerName: "reducto-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (r *ReductoChunking) String() string {
@@ -12710,6 +15487,7 @@ func (r *ReductoChunking) String() string {
 // Reducto chunking
 type ReductoChunkingRequest struct {
 	ChunkerConfig *ReductoChunkerConfigRequest `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12719,15 +15497,28 @@ func (r *ReductoChunkingRequest) GetExtraProperties() map[string]interface{} {
 	return r.extraProperties
 }
 
+func (r *ReductoChunkingRequest) ChunkerName() string {
+	return r.chunkerName
+}
+
 func (r *ReductoChunkingRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler ReductoChunkingRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ReductoChunkingRequest
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*r),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*r = ReductoChunkingRequest(value)
+	*r = ReductoChunkingRequest(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "reducto-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "reducto-chunker", unmarshaler.ChunkerName)
+	}
+	r.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -12735,6 +15526,18 @@ func (r *ReductoChunkingRequest) UnmarshalJSON(data []byte) error {
 
 	r._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (r *ReductoChunkingRequest) MarshalJSON() ([]byte, error) {
+	type embed ReductoChunkingRequest
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*r),
+		ChunkerName: "reducto-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (r *ReductoChunkingRequest) String() string {
@@ -12754,6 +15557,7 @@ type RejectedExecutePromptEvent struct {
 	Error       *VellumError                 `json:"error" url:"error"`
 	ExecutionId string                       `json:"execution_id" url:"execution_id"`
 	Meta        *RejectedPromptExecutionMeta `json:"meta,omitempty" url:"meta,omitempty"`
+	state       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12763,15 +15567,28 @@ func (r *RejectedExecutePromptEvent) GetExtraProperties() map[string]interface{}
 	return r.extraProperties
 }
 
+func (r *RejectedExecutePromptEvent) State() string {
+	return r.state
+}
+
 func (r *RejectedExecutePromptEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler RejectedExecutePromptEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed RejectedExecutePromptEvent
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*r),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*r = RejectedExecutePromptEvent(value)
+	*r = RejectedExecutePromptEvent(unmarshaler.embed)
+	if unmarshaler.State != "REJECTED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "REJECTED", unmarshaler.State)
+	}
+	r.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "state")
 	if err != nil {
 		return err
 	}
@@ -12779,6 +15596,18 @@ func (r *RejectedExecutePromptEvent) UnmarshalJSON(data []byte) error {
 
 	r._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (r *RejectedExecutePromptEvent) MarshalJSON() ([]byte, error) {
+	type embed RejectedExecutePromptEvent
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*r),
+		State: "REJECTED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (r *RejectedExecutePromptEvent) String() string {
@@ -12801,6 +15630,7 @@ type RejectedExecutePromptResponse struct {
 	// The ID of the execution.
 	ExecutionId string       `json:"execution_id" url:"execution_id"`
 	Error       *VellumError `json:"error" url:"error"`
+	state       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12810,15 +15640,28 @@ func (r *RejectedExecutePromptResponse) GetExtraProperties() map[string]interfac
 	return r.extraProperties
 }
 
+func (r *RejectedExecutePromptResponse) State() string {
+	return r.state
+}
+
 func (r *RejectedExecutePromptResponse) UnmarshalJSON(data []byte) error {
-	type unmarshaler RejectedExecutePromptResponse
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed RejectedExecutePromptResponse
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*r),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*r = RejectedExecutePromptResponse(value)
+	*r = RejectedExecutePromptResponse(unmarshaler.embed)
+	if unmarshaler.State != "REJECTED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "REJECTED", unmarshaler.State)
+	}
+	r.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "state")
 	if err != nil {
 		return err
 	}
@@ -12826,6 +15669,18 @@ func (r *RejectedExecutePromptResponse) UnmarshalJSON(data []byte) error {
 
 	r._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (r *RejectedExecutePromptResponse) MarshalJSON() ([]byte, error) {
+	type embed RejectedExecutePromptResponse
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*r),
+		State: "REJECTED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (r *RejectedExecutePromptResponse) String() string {
@@ -12845,6 +15700,7 @@ type RejectedExecuteWorkflowWorkflowResultEvent struct {
 	Id    string              `json:"id" url:"id"`
 	Ts    time.Time           `json:"ts" url:"ts"`
 	Error *WorkflowEventError `json:"error" url:"error"`
+	state string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12854,11 +15710,16 @@ func (r *RejectedExecuteWorkflowWorkflowResultEvent) GetExtraProperties() map[st
 	return r.extraProperties
 }
 
+func (r *RejectedExecuteWorkflowWorkflowResultEvent) State() string {
+	return r.state
+}
+
 func (r *RejectedExecuteWorkflowWorkflowResultEvent) UnmarshalJSON(data []byte) error {
 	type embed RejectedExecuteWorkflowWorkflowResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts"`
+		Ts    *core.DateTime `json:"ts"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*r),
 	}
@@ -12867,8 +15728,12 @@ func (r *RejectedExecuteWorkflowWorkflowResultEvent) UnmarshalJSON(data []byte) 
 	}
 	*r = RejectedExecuteWorkflowWorkflowResultEvent(unmarshaler.embed)
 	r.Ts = unmarshaler.Ts.Time()
+	if unmarshaler.State != "REJECTED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "REJECTED", unmarshaler.State)
+	}
+	r.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "state")
 	if err != nil {
 		return err
 	}
@@ -12882,10 +15747,12 @@ func (r *RejectedExecuteWorkflowWorkflowResultEvent) MarshalJSON() ([]byte, erro
 	type embed RejectedExecuteWorkflowWorkflowResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts"`
+		Ts    *core.DateTime `json:"ts"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*r),
 		Ts:    core.NewDateTime(r.Ts),
+		State: "REJECTED",
 	}
 	return json.Marshal(marshaler)
 }
@@ -12954,6 +15821,7 @@ type RejectedWorkflowNodeResultEvent struct {
 	Data              *WorkflowNodeResultData `json:"data,omitempty" url:"data,omitempty"`
 	SourceExecutionId *string                 `json:"source_execution_id,omitempty" url:"source_execution_id,omitempty"`
 	Error             *WorkflowEventError     `json:"error" url:"error"`
+	state             string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -12963,11 +15831,16 @@ func (r *RejectedWorkflowNodeResultEvent) GetExtraProperties() map[string]interf
 	return r.extraProperties
 }
 
+func (r *RejectedWorkflowNodeResultEvent) State() string {
+	return r.state
+}
+
 func (r *RejectedWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	type embed RejectedWorkflowNodeResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*r),
 	}
@@ -12976,8 +15849,12 @@ func (r *RejectedWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	}
 	*r = RejectedWorkflowNodeResultEvent(unmarshaler.embed)
 	r.Ts = unmarshaler.Ts.TimePtr()
+	if unmarshaler.State != "REJECTED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", r, "REJECTED", unmarshaler.State)
+	}
+	r.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *r)
+	extraProperties, err := core.ExtractExtraProperties(data, *r, "state")
 	if err != nil {
 		return err
 	}
@@ -12991,10 +15868,12 @@ func (r *RejectedWorkflowNodeResultEvent) MarshalJSON() ([]byte, error) {
 	type embed RejectedWorkflowNodeResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*r),
 		Ts:    core.NewOptionalDateTime(r.Ts),
+		State: "REJECTED",
 	}
 	return json.Marshal(marshaler)
 }
@@ -13133,79 +16012,67 @@ func (s *SandboxScenario) String() string {
 }
 
 type ScenarioInput struct {
-	Type        string
-	String      *ScenarioInputStringVariableValue
-	Json        *ScenarioInputJsonVariableValue
-	ChatHistory *ScenarioInputChatHistoryVariableValue
+	ScenarioInputStringVariableValue      *ScenarioInputStringVariableValue
+	ScenarioInputJsonVariableValue        *ScenarioInputJsonVariableValue
+	ScenarioInputChatHistoryVariableValue *ScenarioInputChatHistoryVariableValue
 }
 
 func (s *ScenarioInput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueScenarioInputStringVariableValue := new(ScenarioInputStringVariableValue)
+	if err := json.Unmarshal(data, &valueScenarioInputStringVariableValue); err == nil {
+		s.ScenarioInputStringVariableValue = valueScenarioInputStringVariableValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueScenarioInputJsonVariableValue := new(ScenarioInputJsonVariableValue)
+	if err := json.Unmarshal(data, &valueScenarioInputJsonVariableValue); err == nil {
+		s.ScenarioInputJsonVariableValue = valueScenarioInputJsonVariableValue
+		return nil
 	}
-	s.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(ScenarioInputStringVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.String = value
-	case "JSON":
-		value := new(ScenarioInputJsonVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.Json = value
-	case "CHAT_HISTORY":
-		value := new(ScenarioInputChatHistoryVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.ChatHistory = value
+	valueScenarioInputChatHistoryVariableValue := new(ScenarioInputChatHistoryVariableValue)
+	if err := json.Unmarshal(data, &valueScenarioInputChatHistoryVariableValue); err == nil {
+		s.ScenarioInputChatHistoryVariableValue = valueScenarioInputChatHistoryVariableValue
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, s)
 }
 
 func (s ScenarioInput) MarshalJSON() ([]byte, error) {
-	if s.String != nil {
-		return core.MarshalJSONWithExtraProperty(s.String, "type", "STRING")
+	if s.ScenarioInputStringVariableValue != nil {
+		return json.Marshal(s.ScenarioInputStringVariableValue)
 	}
-	if s.Json != nil {
-		return core.MarshalJSONWithExtraProperty(s.Json, "type", "JSON")
+	if s.ScenarioInputJsonVariableValue != nil {
+		return json.Marshal(s.ScenarioInputJsonVariableValue)
 	}
-	if s.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(s.ChatHistory, "type", "CHAT_HISTORY")
+	if s.ScenarioInputChatHistoryVariableValue != nil {
+		return json.Marshal(s.ScenarioInputChatHistoryVariableValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", s)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", s)
 }
 
 type ScenarioInputVisitor interface {
-	VisitString(*ScenarioInputStringVariableValue) error
-	VisitJson(*ScenarioInputJsonVariableValue) error
-	VisitChatHistory(*ScenarioInputChatHistoryVariableValue) error
+	VisitScenarioInputStringVariableValue(*ScenarioInputStringVariableValue) error
+	VisitScenarioInputJsonVariableValue(*ScenarioInputJsonVariableValue) error
+	VisitScenarioInputChatHistoryVariableValue(*ScenarioInputChatHistoryVariableValue) error
 }
 
 func (s *ScenarioInput) Accept(visitor ScenarioInputVisitor) error {
-	if s.String != nil {
-		return visitor.VisitString(s.String)
+	if s.ScenarioInputStringVariableValue != nil {
+		return visitor.VisitScenarioInputStringVariableValue(s.ScenarioInputStringVariableValue)
 	}
-	if s.Json != nil {
-		return visitor.VisitJson(s.Json)
+	if s.ScenarioInputJsonVariableValue != nil {
+		return visitor.VisitScenarioInputJsonVariableValue(s.ScenarioInputJsonVariableValue)
 	}
-	if s.ChatHistory != nil {
-		return visitor.VisitChatHistory(s.ChatHistory)
+	if s.ScenarioInputChatHistoryVariableValue != nil {
+		return visitor.VisitScenarioInputChatHistoryVariableValue(s.ScenarioInputChatHistoryVariableValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", s)
+	return fmt.Errorf("type %T does not include a non-empty union type", s)
 }
 
 // Prompt Sandbox Scenario input value that is of type CHAT_HISTORY
 type ScenarioInputChatHistoryVariableValue struct {
 	Value           []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
 	InputVariableId string         `json:"input_variable_id" url:"input_variable_id"`
+	type_           string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13215,15 +16082,28 @@ func (s *ScenarioInputChatHistoryVariableValue) GetExtraProperties() map[string]
 	return s.extraProperties
 }
 
+func (s *ScenarioInputChatHistoryVariableValue) Type() string {
+	return s.type_
+}
+
 func (s *ScenarioInputChatHistoryVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ScenarioInputChatHistoryVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ScenarioInputChatHistoryVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = ScenarioInputChatHistoryVariableValue(value)
+	*s = ScenarioInputChatHistoryVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -13231,6 +16111,18 @@ func (s *ScenarioInputChatHistoryVariableValue) UnmarshalJSON(data []byte) error
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *ScenarioInputChatHistoryVariableValue) MarshalJSON() ([]byte, error) {
+	type embed ScenarioInputChatHistoryVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *ScenarioInputChatHistoryVariableValue) String() string {
@@ -13249,6 +16141,7 @@ func (s *ScenarioInputChatHistoryVariableValue) String() string {
 type ScenarioInputJsonVariableValue struct {
 	Value           interface{} `json:"value" url:"value"`
 	InputVariableId string      `json:"input_variable_id" url:"input_variable_id"`
+	type_           string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13258,15 +16151,28 @@ func (s *ScenarioInputJsonVariableValue) GetExtraProperties() map[string]interfa
 	return s.extraProperties
 }
 
+func (s *ScenarioInputJsonVariableValue) Type() string {
+	return s.type_
+}
+
 func (s *ScenarioInputJsonVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ScenarioInputJsonVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ScenarioInputJsonVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = ScenarioInputJsonVariableValue(value)
+	*s = ScenarioInputJsonVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "JSON", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -13274,6 +16180,18 @@ func (s *ScenarioInputJsonVariableValue) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *ScenarioInputJsonVariableValue) MarshalJSON() ([]byte, error) {
+	type embed ScenarioInputJsonVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *ScenarioInputJsonVariableValue) String() string {
@@ -13292,6 +16210,7 @@ func (s *ScenarioInputJsonVariableValue) String() string {
 type ScenarioInputStringVariableValue struct {
 	Value           *string `json:"value,omitempty" url:"value,omitempty"`
 	InputVariableId string  `json:"input_variable_id" url:"input_variable_id"`
+	type_           string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13301,15 +16220,28 @@ func (s *ScenarioInputStringVariableValue) GetExtraProperties() map[string]inter
 	return s.extraProperties
 }
 
+func (s *ScenarioInputStringVariableValue) Type() string {
+	return s.type_
+}
+
 func (s *ScenarioInputStringVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler ScenarioInputStringVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed ScenarioInputStringVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = ScenarioInputStringVariableValue(value)
+	*s = ScenarioInputStringVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -13317,6 +16249,18 @@ func (s *ScenarioInputStringVariableValue) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *ScenarioInputStringVariableValue) MarshalJSON() ([]byte, error) {
+	type embed ScenarioInputStringVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *ScenarioInputStringVariableValue) String() string {
@@ -13377,7 +16321,8 @@ func (s *SearchFiltersRequest) String() string {
 
 // A Node Result Event emitted from a Search Node.
 type SearchNodeResult struct {
-	Data *SearchNodeResultData `json:"data" url:"data"`
+	Data  *SearchNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13387,15 +16332,28 @@ func (s *SearchNodeResult) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *SearchNodeResult) Type() string {
+	return s.type_
+}
+
 func (s *SearchNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler SearchNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed SearchNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = SearchNodeResult(value)
+	*s = SearchNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "SEARCH", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -13403,6 +16361,18 @@ func (s *SearchNodeResult) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *SearchNodeResult) MarshalJSON() ([]byte, error) {
+	type embed SearchNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "SEARCH",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *SearchNodeResult) String() string {
@@ -13740,7 +16710,7 @@ func (s *SearchResultMergingRequest) String() string {
 }
 
 type SearchResultMeta struct {
-	Source *SearchResultMetaSource `json:"source,omitempty" url:"source,omitempty"`
+	Source *ComponentsSchemasPdfSearchResultMetaSource `json:"source,omitempty" url:"source,omitempty"`
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13781,7 +16751,7 @@ func (s *SearchResultMeta) String() string {
 }
 
 type SearchResultMetaRequest struct {
-	Source *SearchResultMetaSourceRequest `json:"source,omitempty" url:"source,omitempty"`
+	Source *ComponentsSchemasPdfSearchResultMetaSourceRequest `json:"source,omitempty" url:"source,omitempty"`
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -13819,90 +16789,6 @@ func (s *SearchResultMetaRequest) String() string {
 		return value
 	}
 	return fmt.Sprintf("%#v", s)
-}
-
-type SearchResultMetaSource struct {
-	DocumentType string
-	Pdf          *PdfSearchResultMetaSource
-}
-
-func (s *SearchResultMetaSource) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		DocumentType string `json:"document_type"`
-	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
-	}
-	s.DocumentType = unmarshaler.DocumentType
-	switch unmarshaler.DocumentType {
-	case "PDF":
-		value := new(PdfSearchResultMetaSource)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.Pdf = value
-	}
-	return nil
-}
-
-func (s SearchResultMetaSource) MarshalJSON() ([]byte, error) {
-	if s.Pdf != nil {
-		return core.MarshalJSONWithExtraProperty(s.Pdf, "document_type", "PDF")
-	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", s)
-}
-
-type SearchResultMetaSourceVisitor interface {
-	VisitPdf(*PdfSearchResultMetaSource) error
-}
-
-func (s *SearchResultMetaSource) Accept(visitor SearchResultMetaSourceVisitor) error {
-	if s.Pdf != nil {
-		return visitor.VisitPdf(s.Pdf)
-	}
-	return fmt.Errorf("type %T does not define a non-empty union type", s)
-}
-
-type SearchResultMetaSourceRequest struct {
-	DocumentType string
-	Pdf          *PdfSearchResultMetaSourceRequest
-}
-
-func (s *SearchResultMetaSourceRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		DocumentType string `json:"document_type"`
-	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
-	}
-	s.DocumentType = unmarshaler.DocumentType
-	switch unmarshaler.DocumentType {
-	case "PDF":
-		value := new(PdfSearchResultMetaSourceRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.Pdf = value
-	}
-	return nil
-}
-
-func (s SearchResultMetaSourceRequest) MarshalJSON() ([]byte, error) {
-	if s.Pdf != nil {
-		return core.MarshalJSONWithExtraProperty(s.Pdf, "document_type", "PDF")
-	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", s)
-}
-
-type SearchResultMetaSourceRequestVisitor interface {
-	VisitPdf(*PdfSearchResultMetaSourceRequest) error
-}
-
-func (s *SearchResultMetaSourceRequest) Accept(visitor SearchResultMetaSourceRequestVisitor) error {
-	if s.Pdf != nil {
-		return visitor.VisitPdf(s.Pdf)
-	}
-	return fmt.Errorf("type %T does not define a non-empty union type", s)
 }
 
 type SearchResultRequest struct {
@@ -14087,6 +16973,7 @@ func (s *SentenceChunkerConfigRequest) String() string {
 // Sentence chunking
 type SentenceChunking struct {
 	ChunkerConfig *SentenceChunkerConfig `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14096,15 +16983,28 @@ func (s *SentenceChunking) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *SentenceChunking) ChunkerName() string {
+	return s.chunkerName
+}
+
 func (s *SentenceChunking) UnmarshalJSON(data []byte) error {
-	type unmarshaler SentenceChunking
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed SentenceChunking
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = SentenceChunking(value)
+	*s = SentenceChunking(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "sentence-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "sentence-chunker", unmarshaler.ChunkerName)
+	}
+	s.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -14112,6 +17012,18 @@ func (s *SentenceChunking) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *SentenceChunking) MarshalJSON() ([]byte, error) {
+	type embed SentenceChunking
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*s),
+		ChunkerName: "sentence-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *SentenceChunking) String() string {
@@ -14129,6 +17041,7 @@ func (s *SentenceChunking) String() string {
 // Sentence chunking
 type SentenceChunkingRequest struct {
 	ChunkerConfig *SentenceChunkerConfigRequest `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14138,15 +17051,28 @@ func (s *SentenceChunkingRequest) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *SentenceChunkingRequest) ChunkerName() string {
+	return s.chunkerName
+}
+
 func (s *SentenceChunkingRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler SentenceChunkingRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed SentenceChunkingRequest
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = SentenceChunkingRequest(value)
+	*s = SentenceChunkingRequest(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "sentence-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "sentence-chunker", unmarshaler.ChunkerName)
+	}
+	s.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -14154,6 +17080,18 @@ func (s *SentenceChunkingRequest) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *SentenceChunkingRequest) MarshalJSON() ([]byte, error) {
+	type embed SentenceChunkingRequest
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*s),
+		ChunkerName: "sentence-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *SentenceChunkingRequest) String() string {
@@ -14431,7 +17369,8 @@ type StreamingExecutePromptEvent struct {
 	ExecutionId string                        `json:"execution_id" url:"execution_id"`
 	Meta        *StreamingPromptExecutionMeta `json:"meta,omitempty" url:"meta,omitempty"`
 	// The subset of the raw response from the model that the request opted into with `expand_raw`.
-	Raw map[string]interface{} `json:"raw,omitempty" url:"raw,omitempty"`
+	Raw   map[string]interface{} `json:"raw,omitempty" url:"raw,omitempty"`
+	state string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14441,15 +17380,28 @@ func (s *StreamingExecutePromptEvent) GetExtraProperties() map[string]interface{
 	return s.extraProperties
 }
 
+func (s *StreamingExecutePromptEvent) State() string {
+	return s.state
+}
+
 func (s *StreamingExecutePromptEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler StreamingExecutePromptEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StreamingExecutePromptEvent
+	var unmarshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StreamingExecutePromptEvent(value)
+	*s = StreamingExecutePromptEvent(unmarshaler.embed)
+	if unmarshaler.State != "STREAMING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STREAMING", unmarshaler.State)
+	}
+	s.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "state")
 	if err != nil {
 		return err
 	}
@@ -14457,6 +17409,18 @@ func (s *StreamingExecutePromptEvent) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StreamingExecutePromptEvent) MarshalJSON() ([]byte, error) {
+	type embed StreamingExecutePromptEvent
+	var marshaler = struct {
+		embed
+		State string `json:"state"`
+	}{
+		embed: embed(*s),
+		State: "STREAMING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StreamingExecutePromptEvent) String() string {
@@ -14523,6 +17487,7 @@ type StreamingWorkflowNodeResultEvent struct {
 	SourceExecutionId *string                  `json:"source_execution_id,omitempty" url:"source_execution_id,omitempty"`
 	Output            *NodeOutputCompiledValue `json:"output,omitempty" url:"output,omitempty"`
 	OutputIndex       *int                     `json:"output_index,omitempty" url:"output_index,omitempty"`
+	state             string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14532,11 +17497,16 @@ func (s *StreamingWorkflowNodeResultEvent) GetExtraProperties() map[string]inter
 	return s.extraProperties
 }
 
+func (s *StreamingWorkflowNodeResultEvent) State() string {
+	return s.state
+}
+
 func (s *StreamingWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	type embed StreamingWorkflowNodeResultEvent
 	var unmarshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*s),
 	}
@@ -14545,8 +17515,12 @@ func (s *StreamingWorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
 	}
 	*s = StreamingWorkflowNodeResultEvent(unmarshaler.embed)
 	s.Ts = unmarshaler.Ts.TimePtr()
+	if unmarshaler.State != "STREAMING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STREAMING", unmarshaler.State)
+	}
+	s.state = unmarshaler.State
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "state")
 	if err != nil {
 		return err
 	}
@@ -14560,10 +17534,12 @@ func (s *StreamingWorkflowNodeResultEvent) MarshalJSON() ([]byte, error) {
 	type embed StreamingWorkflowNodeResultEvent
 	var marshaler = struct {
 		embed
-		Ts *core.DateTime `json:"ts,omitempty"`
+		Ts    *core.DateTime `json:"ts,omitempty"`
+		State string         `json:"state"`
 	}{
 		embed: embed(*s),
 		Ts:    core.NewOptionalDateTime(s.Ts),
+		State: "STREAMING",
 	}
 	return json.Marshal(marshaler)
 }
@@ -14583,6 +17559,7 @@ func (s *StreamingWorkflowNodeResultEvent) String() string {
 // A string value that is used in a chat message.
 type StringChatMessageContent struct {
 	Value string `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14592,15 +17569,28 @@ func (s *StringChatMessageContent) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *StringChatMessageContent) Type() string {
+	return s.type_
+}
+
 func (s *StringChatMessageContent) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringChatMessageContent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringChatMessageContent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringChatMessageContent(value)
+	*s = StringChatMessageContent(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14608,6 +17598,18 @@ func (s *StringChatMessageContent) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringChatMessageContent) MarshalJSON() ([]byte, error) {
+	type embed StringChatMessageContent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringChatMessageContent) String() string {
@@ -14625,6 +17627,7 @@ func (s *StringChatMessageContent) String() string {
 // A string value that is used in a chat message.
 type StringChatMessageContentRequest struct {
 	Value string `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14634,15 +17637,28 @@ func (s *StringChatMessageContentRequest) GetExtraProperties() map[string]interf
 	return s.extraProperties
 }
 
+func (s *StringChatMessageContentRequest) Type() string {
+	return s.type_
+}
+
 func (s *StringChatMessageContentRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringChatMessageContentRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringChatMessageContentRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringChatMessageContentRequest(value)
+	*s = StringChatMessageContentRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14650,6 +17666,18 @@ func (s *StringChatMessageContentRequest) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringChatMessageContentRequest) MarshalJSON() ([]byte, error) {
+	type embed StringChatMessageContentRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringChatMessageContentRequest) String() string {
@@ -14669,6 +17697,7 @@ type StringInputRequest struct {
 	// The variable's name, as defined in the deployment.
 	Name  string `json:"name" url:"name"`
 	Value string `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14678,15 +17707,28 @@ func (s *StringInputRequest) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *StringInputRequest) Type() string {
+	return s.type_
+}
+
 func (s *StringInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringInputRequest(value)
+	*s = StringInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14694,6 +17736,18 @@ func (s *StringInputRequest) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringInputRequest) MarshalJSON() ([]byte, error) {
+	type embed StringInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringInputRequest) String() string {
@@ -14710,6 +17764,7 @@ func (s *StringInputRequest) String() string {
 
 type StringVariableValue struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14719,15 +17774,28 @@ func (s *StringVariableValue) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *StringVariableValue) Type() string {
+	return s.type_
+}
+
 func (s *StringVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringVariableValue(value)
+	*s = StringVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14735,6 +17803,18 @@ func (s *StringVariableValue) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringVariableValue) MarshalJSON() ([]byte, error) {
+	type embed StringVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringVariableValue) String() string {
@@ -14752,6 +17832,7 @@ func (s *StringVariableValue) String() string {
 // A value representing a string.
 type StringVellumValue struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14761,15 +17842,28 @@ func (s *StringVellumValue) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *StringVellumValue) Type() string {
+	return s.type_
+}
+
 func (s *StringVellumValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringVellumValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringVellumValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringVellumValue(value)
+	*s = StringVellumValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14777,6 +17871,18 @@ func (s *StringVellumValue) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringVellumValue) MarshalJSON() ([]byte, error) {
+	type embed StringVellumValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringVellumValue) String() string {
@@ -14794,6 +17900,7 @@ func (s *StringVellumValue) String() string {
 // A value representing a string.
 type StringVellumValueRequest struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14803,15 +17910,28 @@ func (s *StringVellumValueRequest) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *StringVellumValueRequest) Type() string {
+	return s.type_
+}
+
 func (s *StringVellumValueRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler StringVellumValueRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed StringVellumValueRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = StringVellumValueRequest(value)
+	*s = StringVellumValueRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "STRING", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -14819,6 +17939,18 @@ func (s *StringVellumValueRequest) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *StringVellumValueRequest) MarshalJSON() ([]byte, error) {
+	type embed StringVellumValueRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *StringVellumValueRequest) String() string {
@@ -14904,78 +18036,66 @@ func (s *SubmitCompletionActualRequest) String() string {
 }
 
 type SubmitWorkflowExecutionActualRequest struct {
-	OutputType  string
-	String      *WorkflowExecutionActualStringRequest
-	Json        *WorkflowExecutionActualJsonRequest
-	ChatHistory *WorkflowExecutionActualChatHistoryRequest
+	WorkflowExecutionActualStringRequest      *WorkflowExecutionActualStringRequest
+	WorkflowExecutionActualJsonRequest        *WorkflowExecutionActualJsonRequest
+	WorkflowExecutionActualChatHistoryRequest *WorkflowExecutionActualChatHistoryRequest
 }
 
 func (s *SubmitWorkflowExecutionActualRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		OutputType string `json:"output_type"`
+	valueWorkflowExecutionActualStringRequest := new(WorkflowExecutionActualStringRequest)
+	if err := json.Unmarshal(data, &valueWorkflowExecutionActualStringRequest); err == nil {
+		s.WorkflowExecutionActualStringRequest = valueWorkflowExecutionActualStringRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueWorkflowExecutionActualJsonRequest := new(WorkflowExecutionActualJsonRequest)
+	if err := json.Unmarshal(data, &valueWorkflowExecutionActualJsonRequest); err == nil {
+		s.WorkflowExecutionActualJsonRequest = valueWorkflowExecutionActualJsonRequest
+		return nil
 	}
-	s.OutputType = unmarshaler.OutputType
-	switch unmarshaler.OutputType {
-	case "STRING":
-		value := new(WorkflowExecutionActualStringRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.String = value
-	case "JSON":
-		value := new(WorkflowExecutionActualJsonRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.Json = value
-	case "CHAT_HISTORY":
-		value := new(WorkflowExecutionActualChatHistoryRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		s.ChatHistory = value
+	valueWorkflowExecutionActualChatHistoryRequest := new(WorkflowExecutionActualChatHistoryRequest)
+	if err := json.Unmarshal(data, &valueWorkflowExecutionActualChatHistoryRequest); err == nil {
+		s.WorkflowExecutionActualChatHistoryRequest = valueWorkflowExecutionActualChatHistoryRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, s)
 }
 
 func (s SubmitWorkflowExecutionActualRequest) MarshalJSON() ([]byte, error) {
-	if s.String != nil {
-		return core.MarshalJSONWithExtraProperty(s.String, "output_type", "STRING")
+	if s.WorkflowExecutionActualStringRequest != nil {
+		return json.Marshal(s.WorkflowExecutionActualStringRequest)
 	}
-	if s.Json != nil {
-		return core.MarshalJSONWithExtraProperty(s.Json, "output_type", "JSON")
+	if s.WorkflowExecutionActualJsonRequest != nil {
+		return json.Marshal(s.WorkflowExecutionActualJsonRequest)
 	}
-	if s.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(s.ChatHistory, "output_type", "CHAT_HISTORY")
+	if s.WorkflowExecutionActualChatHistoryRequest != nil {
+		return json.Marshal(s.WorkflowExecutionActualChatHistoryRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", s)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", s)
 }
 
 type SubmitWorkflowExecutionActualRequestVisitor interface {
-	VisitString(*WorkflowExecutionActualStringRequest) error
-	VisitJson(*WorkflowExecutionActualJsonRequest) error
-	VisitChatHistory(*WorkflowExecutionActualChatHistoryRequest) error
+	VisitWorkflowExecutionActualStringRequest(*WorkflowExecutionActualStringRequest) error
+	VisitWorkflowExecutionActualJsonRequest(*WorkflowExecutionActualJsonRequest) error
+	VisitWorkflowExecutionActualChatHistoryRequest(*WorkflowExecutionActualChatHistoryRequest) error
 }
 
 func (s *SubmitWorkflowExecutionActualRequest) Accept(visitor SubmitWorkflowExecutionActualRequestVisitor) error {
-	if s.String != nil {
-		return visitor.VisitString(s.String)
+	if s.WorkflowExecutionActualStringRequest != nil {
+		return visitor.VisitWorkflowExecutionActualStringRequest(s.WorkflowExecutionActualStringRequest)
 	}
-	if s.Json != nil {
-		return visitor.VisitJson(s.Json)
+	if s.WorkflowExecutionActualJsonRequest != nil {
+		return visitor.VisitWorkflowExecutionActualJsonRequest(s.WorkflowExecutionActualJsonRequest)
 	}
-	if s.ChatHistory != nil {
-		return visitor.VisitChatHistory(s.ChatHistory)
+	if s.WorkflowExecutionActualChatHistoryRequest != nil {
+		return visitor.VisitWorkflowExecutionActualChatHistoryRequest(s.WorkflowExecutionActualChatHistoryRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", s)
+	return fmt.Errorf("type %T does not include a non-empty union type", s)
 }
 
 // A Node Result Event emitted from a Subworkflow Node.
 type SubworkflowNodeResult struct {
-	Data *SubworkflowNodeResultData `json:"data,omitempty" url:"data,omitempty"`
+	Data  *SubworkflowNodeResultData `json:"data,omitempty" url:"data,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -14985,15 +18105,28 @@ func (s *SubworkflowNodeResult) GetExtraProperties() map[string]interface{} {
 	return s.extraProperties
 }
 
+func (s *SubworkflowNodeResult) Type() string {
+	return s.type_
+}
+
 func (s *SubworkflowNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler SubworkflowNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed SubworkflowNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*s = SubworkflowNodeResult(value)
+	*s = SubworkflowNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "SUBWORKFLOW" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", s, "SUBWORKFLOW", unmarshaler.Type)
+	}
+	s.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *s)
+	extraProperties, err := core.ExtractExtraProperties(data, *s, "type")
 	if err != nil {
 		return err
 	}
@@ -15001,6 +18134,18 @@ func (s *SubworkflowNodeResult) UnmarshalJSON(data []byte) error {
 
 	s._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (s *SubworkflowNodeResult) MarshalJSON() ([]byte, error) {
+	type embed SubworkflowNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*s),
+		Type:  "SUBWORKFLOW",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (s *SubworkflowNodeResult) String() string {
@@ -15059,6 +18204,7 @@ func (s *SubworkflowNodeResultData) String() string {
 type TemplatingNodeArrayResult struct {
 	Id    string                    `json:"id" url:"id"`
 	Value []*ArrayVariableValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15068,15 +18214,28 @@ func (t *TemplatingNodeArrayResult) GetExtraProperties() map[string]interface{} 
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeArrayResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeArrayResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeArrayResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeArrayResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeArrayResult(value)
+	*t = TemplatingNodeArrayResult(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ARRAY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15084,6 +18243,18 @@ func (t *TemplatingNodeArrayResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeArrayResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeArrayResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeArrayResult) String() string {
@@ -15101,6 +18272,7 @@ func (t *TemplatingNodeArrayResult) String() string {
 type TemplatingNodeChatHistoryResult struct {
 	Id    string         `json:"id" url:"id"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15110,15 +18282,28 @@ func (t *TemplatingNodeChatHistoryResult) GetExtraProperties() map[string]interf
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeChatHistoryResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeChatHistoryResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeChatHistoryResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeChatHistoryResult(value)
+	*t = TemplatingNodeChatHistoryResult(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15126,6 +18311,18 @@ func (t *TemplatingNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeChatHistoryResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeChatHistoryResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeChatHistoryResult) String() string {
@@ -15143,6 +18340,7 @@ func (t *TemplatingNodeChatHistoryResult) String() string {
 type TemplatingNodeErrorResult struct {
 	Id    string       `json:"id" url:"id"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15152,15 +18350,28 @@ func (t *TemplatingNodeErrorResult) GetExtraProperties() map[string]interface{} 
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeErrorResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeErrorResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeErrorResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeErrorResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeErrorResult(value)
+	*t = TemplatingNodeErrorResult(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ERROR", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15168,6 +18379,18 @@ func (t *TemplatingNodeErrorResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeErrorResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeErrorResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeErrorResult) String() string {
@@ -15185,6 +18408,7 @@ func (t *TemplatingNodeErrorResult) String() string {
 type TemplatingNodeFunctionCallResult struct {
 	Id    string        `json:"id" url:"id"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15194,15 +18418,28 @@ func (t *TemplatingNodeFunctionCallResult) GetExtraProperties() map[string]inter
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeFunctionCallResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeFunctionCallResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeFunctionCallResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeFunctionCallResult(value)
+	*t = TemplatingNodeFunctionCallResult(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15210,6 +18447,18 @@ func (t *TemplatingNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeFunctionCallResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeFunctionCallResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeFunctionCallResult) String() string {
@@ -15227,6 +18476,7 @@ func (t *TemplatingNodeFunctionCallResult) String() string {
 type TemplatingNodeJsonResult struct {
 	Id    string      `json:"id" url:"id"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15236,15 +18486,28 @@ func (t *TemplatingNodeJsonResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeJsonResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeJsonResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeJsonResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeJsonResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeJsonResult(value)
+	*t = TemplatingNodeJsonResult(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "JSON", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15252,6 +18515,18 @@ func (t *TemplatingNodeJsonResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeJsonResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeJsonResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeJsonResult) String() string {
@@ -15269,6 +18544,7 @@ func (t *TemplatingNodeJsonResult) String() string {
 type TemplatingNodeNumberResult struct {
 	Id    string   `json:"id" url:"id"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15278,15 +18554,28 @@ func (t *TemplatingNodeNumberResult) GetExtraProperties() map[string]interface{}
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeNumberResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeNumberResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeNumberResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeNumberResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeNumberResult(value)
+	*t = TemplatingNodeNumberResult(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "NUMBER", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15294,6 +18583,18 @@ func (t *TemplatingNodeNumberResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeNumberResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeNumberResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeNumberResult) String() string {
@@ -15310,7 +18611,8 @@ func (t *TemplatingNodeNumberResult) String() string {
 
 // A Node Result Event emitted from a Templating Node.
 type TemplatingNodeResult struct {
-	Data *TemplatingNodeResultData `json:"data" url:"data"`
+	Data  *TemplatingNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15320,15 +18622,28 @@ func (t *TemplatingNodeResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeResult(value)
+	*t = TemplatingNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "TEMPLATING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "TEMPLATING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15336,6 +18651,18 @@ func (t *TemplatingNodeResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "TEMPLATING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeResult) String() string {
@@ -15392,148 +18719,131 @@ func (t *TemplatingNodeResultData) String() string {
 }
 
 type TemplatingNodeResultOutput struct {
-	Type          string
-	String        *TemplatingNodeStringResult
-	Number        *TemplatingNodeNumberResult
-	Json          *TemplatingNodeJsonResult
-	ChatHistory   *TemplatingNodeChatHistoryResult
-	SearchResults *TemplatingNodeSearchResultsResult
-	Error         *TemplatingNodeErrorResult
-	Array         *TemplatingNodeArrayResult
-	FunctionCall  *TemplatingNodeFunctionCallResult
+	TemplatingNodeStringResult        *TemplatingNodeStringResult
+	TemplatingNodeNumberResult        *TemplatingNodeNumberResult
+	TemplatingNodeJsonResult          *TemplatingNodeJsonResult
+	TemplatingNodeChatHistoryResult   *TemplatingNodeChatHistoryResult
+	TemplatingNodeSearchResultsResult *TemplatingNodeSearchResultsResult
+	TemplatingNodeErrorResult         *TemplatingNodeErrorResult
+	TemplatingNodeArrayResult         *TemplatingNodeArrayResult
+	TemplatingNodeFunctionCallResult  *TemplatingNodeFunctionCallResult
 }
 
 func (t *TemplatingNodeResultOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTemplatingNodeStringResult := new(TemplatingNodeStringResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeStringResult); err == nil {
+		t.TemplatingNodeStringResult = valueTemplatingNodeStringResult
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTemplatingNodeNumberResult := new(TemplatingNodeNumberResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeNumberResult); err == nil {
+		t.TemplatingNodeNumberResult = valueTemplatingNodeNumberResult
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(TemplatingNodeStringResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.String = value
-	case "NUMBER":
-		value := new(TemplatingNodeNumberResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Number = value
-	case "JSON":
-		value := new(TemplatingNodeJsonResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Json = value
-	case "CHAT_HISTORY":
-		value := new(TemplatingNodeChatHistoryResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(TemplatingNodeSearchResultsResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.SearchResults = value
-	case "ERROR":
-		value := new(TemplatingNodeErrorResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Error = value
-	case "ARRAY":
-		value := new(TemplatingNodeArrayResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Array = value
-	case "FUNCTION_CALL":
-		value := new(TemplatingNodeFunctionCallResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.FunctionCall = value
+	valueTemplatingNodeJsonResult := new(TemplatingNodeJsonResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeJsonResult); err == nil {
+		t.TemplatingNodeJsonResult = valueTemplatingNodeJsonResult
+		return nil
 	}
-	return nil
+	valueTemplatingNodeChatHistoryResult := new(TemplatingNodeChatHistoryResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeChatHistoryResult); err == nil {
+		t.TemplatingNodeChatHistoryResult = valueTemplatingNodeChatHistoryResult
+		return nil
+	}
+	valueTemplatingNodeSearchResultsResult := new(TemplatingNodeSearchResultsResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeSearchResultsResult); err == nil {
+		t.TemplatingNodeSearchResultsResult = valueTemplatingNodeSearchResultsResult
+		return nil
+	}
+	valueTemplatingNodeErrorResult := new(TemplatingNodeErrorResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeErrorResult); err == nil {
+		t.TemplatingNodeErrorResult = valueTemplatingNodeErrorResult
+		return nil
+	}
+	valueTemplatingNodeArrayResult := new(TemplatingNodeArrayResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeArrayResult); err == nil {
+		t.TemplatingNodeArrayResult = valueTemplatingNodeArrayResult
+		return nil
+	}
+	valueTemplatingNodeFunctionCallResult := new(TemplatingNodeFunctionCallResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeFunctionCallResult); err == nil {
+		t.TemplatingNodeFunctionCallResult = valueTemplatingNodeFunctionCallResult
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TemplatingNodeResultOutput) MarshalJSON() ([]byte, error) {
-	if t.String != nil {
-		return core.MarshalJSONWithExtraProperty(t.String, "type", "STRING")
+	if t.TemplatingNodeStringResult != nil {
+		return json.Marshal(t.TemplatingNodeStringResult)
 	}
-	if t.Number != nil {
-		return core.MarshalJSONWithExtraProperty(t.Number, "type", "NUMBER")
+	if t.TemplatingNodeNumberResult != nil {
+		return json.Marshal(t.TemplatingNodeNumberResult)
 	}
-	if t.Json != nil {
-		return core.MarshalJSONWithExtraProperty(t.Json, "type", "JSON")
+	if t.TemplatingNodeJsonResult != nil {
+		return json.Marshal(t.TemplatingNodeJsonResult)
 	}
-	if t.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(t.ChatHistory, "type", "CHAT_HISTORY")
+	if t.TemplatingNodeChatHistoryResult != nil {
+		return json.Marshal(t.TemplatingNodeChatHistoryResult)
 	}
-	if t.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(t.SearchResults, "type", "SEARCH_RESULTS")
+	if t.TemplatingNodeSearchResultsResult != nil {
+		return json.Marshal(t.TemplatingNodeSearchResultsResult)
 	}
-	if t.Error != nil {
-		return core.MarshalJSONWithExtraProperty(t.Error, "type", "ERROR")
+	if t.TemplatingNodeErrorResult != nil {
+		return json.Marshal(t.TemplatingNodeErrorResult)
 	}
-	if t.Array != nil {
-		return core.MarshalJSONWithExtraProperty(t.Array, "type", "ARRAY")
+	if t.TemplatingNodeArrayResult != nil {
+		return json.Marshal(t.TemplatingNodeArrayResult)
 	}
-	if t.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(t.FunctionCall, "type", "FUNCTION_CALL")
+	if t.TemplatingNodeFunctionCallResult != nil {
+		return json.Marshal(t.TemplatingNodeFunctionCallResult)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TemplatingNodeResultOutputVisitor interface {
-	VisitString(*TemplatingNodeStringResult) error
-	VisitNumber(*TemplatingNodeNumberResult) error
-	VisitJson(*TemplatingNodeJsonResult) error
-	VisitChatHistory(*TemplatingNodeChatHistoryResult) error
-	VisitSearchResults(*TemplatingNodeSearchResultsResult) error
-	VisitError(*TemplatingNodeErrorResult) error
-	VisitArray(*TemplatingNodeArrayResult) error
-	VisitFunctionCall(*TemplatingNodeFunctionCallResult) error
+	VisitTemplatingNodeStringResult(*TemplatingNodeStringResult) error
+	VisitTemplatingNodeNumberResult(*TemplatingNodeNumberResult) error
+	VisitTemplatingNodeJsonResult(*TemplatingNodeJsonResult) error
+	VisitTemplatingNodeChatHistoryResult(*TemplatingNodeChatHistoryResult) error
+	VisitTemplatingNodeSearchResultsResult(*TemplatingNodeSearchResultsResult) error
+	VisitTemplatingNodeErrorResult(*TemplatingNodeErrorResult) error
+	VisitTemplatingNodeArrayResult(*TemplatingNodeArrayResult) error
+	VisitTemplatingNodeFunctionCallResult(*TemplatingNodeFunctionCallResult) error
 }
 
 func (t *TemplatingNodeResultOutput) Accept(visitor TemplatingNodeResultOutputVisitor) error {
-	if t.String != nil {
-		return visitor.VisitString(t.String)
+	if t.TemplatingNodeStringResult != nil {
+		return visitor.VisitTemplatingNodeStringResult(t.TemplatingNodeStringResult)
 	}
-	if t.Number != nil {
-		return visitor.VisitNumber(t.Number)
+	if t.TemplatingNodeNumberResult != nil {
+		return visitor.VisitTemplatingNodeNumberResult(t.TemplatingNodeNumberResult)
 	}
-	if t.Json != nil {
-		return visitor.VisitJson(t.Json)
+	if t.TemplatingNodeJsonResult != nil {
+		return visitor.VisitTemplatingNodeJsonResult(t.TemplatingNodeJsonResult)
 	}
-	if t.ChatHistory != nil {
-		return visitor.VisitChatHistory(t.ChatHistory)
+	if t.TemplatingNodeChatHistoryResult != nil {
+		return visitor.VisitTemplatingNodeChatHistoryResult(t.TemplatingNodeChatHistoryResult)
 	}
-	if t.SearchResults != nil {
-		return visitor.VisitSearchResults(t.SearchResults)
+	if t.TemplatingNodeSearchResultsResult != nil {
+		return visitor.VisitTemplatingNodeSearchResultsResult(t.TemplatingNodeSearchResultsResult)
 	}
-	if t.Error != nil {
-		return visitor.VisitError(t.Error)
+	if t.TemplatingNodeErrorResult != nil {
+		return visitor.VisitTemplatingNodeErrorResult(t.TemplatingNodeErrorResult)
 	}
-	if t.Array != nil {
-		return visitor.VisitArray(t.Array)
+	if t.TemplatingNodeArrayResult != nil {
+		return visitor.VisitTemplatingNodeArrayResult(t.TemplatingNodeArrayResult)
 	}
-	if t.FunctionCall != nil {
-		return visitor.VisitFunctionCall(t.FunctionCall)
+	if t.TemplatingNodeFunctionCallResult != nil {
+		return visitor.VisitTemplatingNodeFunctionCallResult(t.TemplatingNodeFunctionCallResult)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TemplatingNodeSearchResultsResult struct {
 	Id    string          `json:"id" url:"id"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15543,15 +18853,28 @@ func (t *TemplatingNodeSearchResultsResult) GetExtraProperties() map[string]inte
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeSearchResultsResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeSearchResultsResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeSearchResultsResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeSearchResultsResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeSearchResultsResult(value)
+	*t = TemplatingNodeSearchResultsResult(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15559,6 +18882,18 @@ func (t *TemplatingNodeSearchResultsResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeSearchResultsResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeSearchResultsResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeSearchResultsResult) String() string {
@@ -15576,6 +18911,7 @@ func (t *TemplatingNodeSearchResultsResult) String() string {
 type TemplatingNodeStringResult struct {
 	Id    string  `json:"id" url:"id"`
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15585,15 +18921,28 @@ func (t *TemplatingNodeStringResult) GetExtraProperties() map[string]interface{}
 	return t.extraProperties
 }
 
+func (t *TemplatingNodeStringResult) Type() string {
+	return t.type_
+}
+
 func (t *TemplatingNodeStringResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TemplatingNodeStringResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TemplatingNodeStringResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TemplatingNodeStringResult(value)
+	*t = TemplatingNodeStringResult(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "STRING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15601,6 +18950,18 @@ func (t *TemplatingNodeStringResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TemplatingNodeStringResult) MarshalJSON() ([]byte, error) {
+	type embed TemplatingNodeStringResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TemplatingNodeStringResult) String() string {
@@ -15620,6 +18981,7 @@ type TerminalNodeArrayResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string                    `json:"name" url:"name"`
 	Value []*ArrayVariableValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15629,15 +18991,28 @@ func (t *TerminalNodeArrayResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeArrayResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeArrayResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeArrayResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeArrayResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeArrayResult(value)
+	*t = TerminalNodeArrayResult(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ARRAY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15645,6 +19020,18 @@ func (t *TerminalNodeArrayResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeArrayResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeArrayResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeArrayResult) String() string {
@@ -15664,6 +19051,7 @@ type TerminalNodeChatHistoryResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string         `json:"name" url:"name"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15673,15 +19061,28 @@ func (t *TerminalNodeChatHistoryResult) GetExtraProperties() map[string]interfac
 	return t.extraProperties
 }
 
+func (t *TerminalNodeChatHistoryResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeChatHistoryResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeChatHistoryResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeChatHistoryResult(value)
+	*t = TerminalNodeChatHistoryResult(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15689,6 +19090,18 @@ func (t *TerminalNodeChatHistoryResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeChatHistoryResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeChatHistoryResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeChatHistoryResult) String() string {
@@ -15708,6 +19121,7 @@ type TerminalNodeErrorResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string       `json:"name" url:"name"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15717,15 +19131,28 @@ func (t *TerminalNodeErrorResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeErrorResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeErrorResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeErrorResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeErrorResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeErrorResult(value)
+	*t = TerminalNodeErrorResult(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ERROR", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15733,6 +19160,18 @@ func (t *TerminalNodeErrorResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeErrorResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeErrorResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeErrorResult) String() string {
@@ -15752,6 +19191,7 @@ type TerminalNodeFunctionCallResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string        `json:"name" url:"name"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15761,15 +19201,28 @@ func (t *TerminalNodeFunctionCallResult) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TerminalNodeFunctionCallResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeFunctionCallResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeFunctionCallResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeFunctionCallResult(value)
+	*t = TerminalNodeFunctionCallResult(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15777,6 +19230,18 @@ func (t *TerminalNodeFunctionCallResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeFunctionCallResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeFunctionCallResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeFunctionCallResult) String() string {
@@ -15796,6 +19261,7 @@ type TerminalNodeJsonResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string      `json:"name" url:"name"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15805,15 +19271,28 @@ func (t *TerminalNodeJsonResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeJsonResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeJsonResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeJsonResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeJsonResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeJsonResult(value)
+	*t = TerminalNodeJsonResult(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "JSON", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15821,6 +19300,18 @@ func (t *TerminalNodeJsonResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeJsonResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeJsonResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeJsonResult) String() string {
@@ -15840,6 +19331,7 @@ type TerminalNodeNumberResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string   `json:"name" url:"name"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15849,15 +19341,28 @@ func (t *TerminalNodeNumberResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeNumberResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeNumberResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeNumberResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeNumberResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeNumberResult(value)
+	*t = TerminalNodeNumberResult(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "NUMBER", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15865,6 +19370,18 @@ func (t *TerminalNodeNumberResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeNumberResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeNumberResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeNumberResult) String() string {
@@ -15881,7 +19398,8 @@ func (t *TerminalNodeNumberResult) String() string {
 
 // A Node Result Event emitted from a Terminal Node.
 type TerminalNodeResult struct {
-	Data *TerminalNodeResultData `json:"data" url:"data"`
+	Data  *TerminalNodeResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -15891,15 +19409,28 @@ func (t *TerminalNodeResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeResult(value)
+	*t = TerminalNodeResult(unmarshaler.embed)
+	if unmarshaler.Type != "TERMINAL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "TERMINAL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -15907,6 +19438,18 @@ func (t *TerminalNodeResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "TERMINAL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeResult) String() string {
@@ -15963,143 +19506,125 @@ func (t *TerminalNodeResultData) String() string {
 }
 
 type TerminalNodeResultOutput struct {
-	Type          string
-	String        *TerminalNodeStringResult
-	Number        *TerminalNodeNumberResult
-	Json          *TerminalNodeJsonResult
-	ChatHistory   *TerminalNodeChatHistoryResult
-	SearchResults *TerminalNodeSearchResultsResult
-	Array         *TerminalNodeArrayResult
-	FunctionCall  *TerminalNodeFunctionCallResult
-	Error         *TerminalNodeErrorResult
+	TerminalNodeStringResult        *TerminalNodeStringResult
+	TerminalNodeNumberResult        *TerminalNodeNumberResult
+	TerminalNodeJsonResult          *TerminalNodeJsonResult
+	TerminalNodeChatHistoryResult   *TerminalNodeChatHistoryResult
+	TerminalNodeSearchResultsResult *TerminalNodeSearchResultsResult
+	TerminalNodeArrayResult         *TerminalNodeArrayResult
+	TerminalNodeFunctionCallResult  *TerminalNodeFunctionCallResult
+	TerminalNodeErrorResult         *TerminalNodeErrorResult
 }
 
 func (t *TerminalNodeResultOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTerminalNodeStringResult := new(TerminalNodeStringResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeStringResult); err == nil {
+		t.TerminalNodeStringResult = valueTerminalNodeStringResult
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTerminalNodeNumberResult := new(TerminalNodeNumberResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeNumberResult); err == nil {
+		t.TerminalNodeNumberResult = valueTerminalNodeNumberResult
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(TerminalNodeStringResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.String = value
-	case "NUMBER":
-		value := new(TerminalNodeNumberResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Number = value
-	case "JSON":
-		value := new(TerminalNodeJsonResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Json = value
-	case "CHAT_HISTORY":
-		value := new(TerminalNodeChatHistoryResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(TerminalNodeSearchResultsResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.SearchResults = value
-	case "ARRAY":
-		value := new(TerminalNodeArrayResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Array = value
-	case "FUNCTION_CALL":
-		value := new(TerminalNodeFunctionCallResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.FunctionCall = value
-	case "ERROR":
-		value := new(TerminalNodeErrorResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Error = value
+	valueTerminalNodeJsonResult := new(TerminalNodeJsonResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeJsonResult); err == nil {
+		t.TerminalNodeJsonResult = valueTerminalNodeJsonResult
+		return nil
 	}
-	return nil
+	valueTerminalNodeChatHistoryResult := new(TerminalNodeChatHistoryResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeChatHistoryResult); err == nil {
+		t.TerminalNodeChatHistoryResult = valueTerminalNodeChatHistoryResult
+		return nil
+	}
+	valueTerminalNodeSearchResultsResult := new(TerminalNodeSearchResultsResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeSearchResultsResult); err == nil {
+		t.TerminalNodeSearchResultsResult = valueTerminalNodeSearchResultsResult
+		return nil
+	}
+	valueTerminalNodeArrayResult := new(TerminalNodeArrayResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeArrayResult); err == nil {
+		t.TerminalNodeArrayResult = valueTerminalNodeArrayResult
+		return nil
+	}
+	valueTerminalNodeFunctionCallResult := new(TerminalNodeFunctionCallResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeFunctionCallResult); err == nil {
+		t.TerminalNodeFunctionCallResult = valueTerminalNodeFunctionCallResult
+		return nil
+	}
+	valueTerminalNodeErrorResult := new(TerminalNodeErrorResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeErrorResult); err == nil {
+		t.TerminalNodeErrorResult = valueTerminalNodeErrorResult
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TerminalNodeResultOutput) MarshalJSON() ([]byte, error) {
-	if t.String != nil {
-		return core.MarshalJSONWithExtraProperty(t.String, "type", "STRING")
+	if t.TerminalNodeStringResult != nil {
+		return json.Marshal(t.TerminalNodeStringResult)
 	}
-	if t.Number != nil {
-		return core.MarshalJSONWithExtraProperty(t.Number, "type", "NUMBER")
+	if t.TerminalNodeNumberResult != nil {
+		return json.Marshal(t.TerminalNodeNumberResult)
 	}
-	if t.Json != nil {
-		return core.MarshalJSONWithExtraProperty(t.Json, "type", "JSON")
+	if t.TerminalNodeJsonResult != nil {
+		return json.Marshal(t.TerminalNodeJsonResult)
 	}
-	if t.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(t.ChatHistory, "type", "CHAT_HISTORY")
+	if t.TerminalNodeChatHistoryResult != nil {
+		return json.Marshal(t.TerminalNodeChatHistoryResult)
 	}
-	if t.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(t.SearchResults, "type", "SEARCH_RESULTS")
+	if t.TerminalNodeSearchResultsResult != nil {
+		return json.Marshal(t.TerminalNodeSearchResultsResult)
 	}
-	if t.Array != nil {
-		return core.MarshalJSONWithExtraProperty(t.Array, "type", "ARRAY")
+	if t.TerminalNodeArrayResult != nil {
+		return json.Marshal(t.TerminalNodeArrayResult)
 	}
-	if t.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(t.FunctionCall, "type", "FUNCTION_CALL")
+	if t.TerminalNodeFunctionCallResult != nil {
+		return json.Marshal(t.TerminalNodeFunctionCallResult)
 	}
-	if t.Error != nil {
-		return core.MarshalJSONWithExtraProperty(t.Error, "type", "ERROR")
+	if t.TerminalNodeErrorResult != nil {
+		return json.Marshal(t.TerminalNodeErrorResult)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TerminalNodeResultOutputVisitor interface {
-	VisitString(*TerminalNodeStringResult) error
-	VisitNumber(*TerminalNodeNumberResult) error
-	VisitJson(*TerminalNodeJsonResult) error
-	VisitChatHistory(*TerminalNodeChatHistoryResult) error
-	VisitSearchResults(*TerminalNodeSearchResultsResult) error
-	VisitArray(*TerminalNodeArrayResult) error
-	VisitFunctionCall(*TerminalNodeFunctionCallResult) error
-	VisitError(*TerminalNodeErrorResult) error
+	VisitTerminalNodeStringResult(*TerminalNodeStringResult) error
+	VisitTerminalNodeNumberResult(*TerminalNodeNumberResult) error
+	VisitTerminalNodeJsonResult(*TerminalNodeJsonResult) error
+	VisitTerminalNodeChatHistoryResult(*TerminalNodeChatHistoryResult) error
+	VisitTerminalNodeSearchResultsResult(*TerminalNodeSearchResultsResult) error
+	VisitTerminalNodeArrayResult(*TerminalNodeArrayResult) error
+	VisitTerminalNodeFunctionCallResult(*TerminalNodeFunctionCallResult) error
+	VisitTerminalNodeErrorResult(*TerminalNodeErrorResult) error
 }
 
 func (t *TerminalNodeResultOutput) Accept(visitor TerminalNodeResultOutputVisitor) error {
-	if t.String != nil {
-		return visitor.VisitString(t.String)
+	if t.TerminalNodeStringResult != nil {
+		return visitor.VisitTerminalNodeStringResult(t.TerminalNodeStringResult)
 	}
-	if t.Number != nil {
-		return visitor.VisitNumber(t.Number)
+	if t.TerminalNodeNumberResult != nil {
+		return visitor.VisitTerminalNodeNumberResult(t.TerminalNodeNumberResult)
 	}
-	if t.Json != nil {
-		return visitor.VisitJson(t.Json)
+	if t.TerminalNodeJsonResult != nil {
+		return visitor.VisitTerminalNodeJsonResult(t.TerminalNodeJsonResult)
 	}
-	if t.ChatHistory != nil {
-		return visitor.VisitChatHistory(t.ChatHistory)
+	if t.TerminalNodeChatHistoryResult != nil {
+		return visitor.VisitTerminalNodeChatHistoryResult(t.TerminalNodeChatHistoryResult)
 	}
-	if t.SearchResults != nil {
-		return visitor.VisitSearchResults(t.SearchResults)
+	if t.TerminalNodeSearchResultsResult != nil {
+		return visitor.VisitTerminalNodeSearchResultsResult(t.TerminalNodeSearchResultsResult)
 	}
-	if t.Array != nil {
-		return visitor.VisitArray(t.Array)
+	if t.TerminalNodeArrayResult != nil {
+		return visitor.VisitTerminalNodeArrayResult(t.TerminalNodeArrayResult)
 	}
-	if t.FunctionCall != nil {
-		return visitor.VisitFunctionCall(t.FunctionCall)
+	if t.TerminalNodeFunctionCallResult != nil {
+		return visitor.VisitTerminalNodeFunctionCallResult(t.TerminalNodeFunctionCallResult)
 	}
-	if t.Error != nil {
-		return visitor.VisitError(t.Error)
+	if t.TerminalNodeErrorResult != nil {
+		return visitor.VisitTerminalNodeErrorResult(t.TerminalNodeErrorResult)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TerminalNodeSearchResultsResult struct {
@@ -16107,6 +19632,7 @@ type TerminalNodeSearchResultsResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string          `json:"name" url:"name"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16116,15 +19642,28 @@ func (t *TerminalNodeSearchResultsResult) GetExtraProperties() map[string]interf
 	return t.extraProperties
 }
 
+func (t *TerminalNodeSearchResultsResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeSearchResultsResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeSearchResultsResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeSearchResultsResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeSearchResultsResult(value)
+	*t = TerminalNodeSearchResultsResult(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16132,6 +19671,18 @@ func (t *TerminalNodeSearchResultsResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeSearchResultsResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeSearchResultsResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeSearchResultsResult) String() string {
@@ -16151,6 +19702,7 @@ type TerminalNodeStringResult struct {
 	// The unique name given to the terminal node that produced this output.
 	Name  string  `json:"name" url:"name"`
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16160,15 +19712,28 @@ func (t *TerminalNodeStringResult) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TerminalNodeStringResult) Type() string {
+	return t.type_
+}
+
 func (t *TerminalNodeStringResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TerminalNodeStringResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TerminalNodeStringResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TerminalNodeStringResult(value)
+	*t = TerminalNodeStringResult(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "STRING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16176,6 +19741,18 @@ func (t *TerminalNodeStringResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TerminalNodeStringResult) MarshalJSON() ([]byte, error) {
+	type embed TerminalNodeStringResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TerminalNodeStringResult) String() string {
@@ -16195,6 +19772,7 @@ type TestCaseArrayVariableValue struct {
 	VariableId string                  `json:"variable_id" url:"variable_id"`
 	Name       string                  `json:"name" url:"name"`
 	Value      []*ArrayVellumValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16204,15 +19782,28 @@ func (t *TestCaseArrayVariableValue) GetExtraProperties() map[string]interface{}
 	return t.extraProperties
 }
 
+func (t *TestCaseArrayVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseArrayVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseArrayVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseArrayVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseArrayVariableValue(value)
+	*t = TestCaseArrayVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ARRAY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16220,6 +19811,18 @@ func (t *TestCaseArrayVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseArrayVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseArrayVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseArrayVariableValue) String() string {
@@ -16239,6 +19842,7 @@ type TestCaseChatHistoryVariableValue struct {
 	VariableId string         `json:"variable_id" url:"variable_id"`
 	Name       string         `json:"name" url:"name"`
 	Value      []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16248,15 +19852,28 @@ func (t *TestCaseChatHistoryVariableValue) GetExtraProperties() map[string]inter
 	return t.extraProperties
 }
 
+func (t *TestCaseChatHistoryVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseChatHistoryVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseChatHistoryVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseChatHistoryVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseChatHistoryVariableValue(value)
+	*t = TestCaseChatHistoryVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16264,6 +19881,18 @@ func (t *TestCaseChatHistoryVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseChatHistoryVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseChatHistoryVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseChatHistoryVariableValue) String() string {
@@ -16283,6 +19912,7 @@ type TestCaseErrorVariableValue struct {
 	VariableId string       `json:"variable_id" url:"variable_id"`
 	Name       string       `json:"name" url:"name"`
 	Value      *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16292,15 +19922,28 @@ func (t *TestCaseErrorVariableValue) GetExtraProperties() map[string]interface{}
 	return t.extraProperties
 }
 
+func (t *TestCaseErrorVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseErrorVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseErrorVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseErrorVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseErrorVariableValue(value)
+	*t = TestCaseErrorVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ERROR", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16308,6 +19951,18 @@ func (t *TestCaseErrorVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseErrorVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseErrorVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseErrorVariableValue) String() string {
@@ -16327,6 +19982,7 @@ type TestCaseFunctionCallVariableValue struct {
 	VariableId string        `json:"variable_id" url:"variable_id"`
 	Name       string        `json:"name" url:"name"`
 	Value      *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16336,15 +19992,28 @@ func (t *TestCaseFunctionCallVariableValue) GetExtraProperties() map[string]inte
 	return t.extraProperties
 }
 
+func (t *TestCaseFunctionCallVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseFunctionCallVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseFunctionCallVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseFunctionCallVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseFunctionCallVariableValue(value)
+	*t = TestCaseFunctionCallVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16352,6 +20021,18 @@ func (t *TestCaseFunctionCallVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseFunctionCallVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseFunctionCallVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseFunctionCallVariableValue) String() string {
@@ -16371,6 +20052,7 @@ type TestCaseJsonVariableValue struct {
 	VariableId string      `json:"variable_id" url:"variable_id"`
 	Name       string      `json:"name" url:"name"`
 	Value      interface{} `json:"value" url:"value"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16380,15 +20062,28 @@ func (t *TestCaseJsonVariableValue) GetExtraProperties() map[string]interface{} 
 	return t.extraProperties
 }
 
+func (t *TestCaseJsonVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseJsonVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseJsonVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseJsonVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseJsonVariableValue(value)
+	*t = TestCaseJsonVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "JSON", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16396,6 +20091,18 @@ func (t *TestCaseJsonVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseJsonVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseJsonVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseJsonVariableValue) String() string {
@@ -16415,6 +20122,7 @@ type TestCaseNumberVariableValue struct {
 	VariableId string   `json:"variable_id" url:"variable_id"`
 	Name       string   `json:"name" url:"name"`
 	Value      *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16424,15 +20132,28 @@ func (t *TestCaseNumberVariableValue) GetExtraProperties() map[string]interface{
 	return t.extraProperties
 }
 
+func (t *TestCaseNumberVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseNumberVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseNumberVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseNumberVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseNumberVariableValue(value)
+	*t = TestCaseNumberVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "NUMBER", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16440,6 +20161,18 @@ func (t *TestCaseNumberVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseNumberVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseNumberVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseNumberVariableValue) String() string {
@@ -16459,6 +20192,7 @@ type TestCaseSearchResultsVariableValue struct {
 	VariableId string          `json:"variable_id" url:"variable_id"`
 	Name       string          `json:"name" url:"name"`
 	Value      []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16468,15 +20202,28 @@ func (t *TestCaseSearchResultsVariableValue) GetExtraProperties() map[string]int
 	return t.extraProperties
 }
 
+func (t *TestCaseSearchResultsVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseSearchResultsVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseSearchResultsVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseSearchResultsVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseSearchResultsVariableValue(value)
+	*t = TestCaseSearchResultsVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16484,6 +20231,18 @@ func (t *TestCaseSearchResultsVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseSearchResultsVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseSearchResultsVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseSearchResultsVariableValue) String() string {
@@ -16503,6 +20262,7 @@ type TestCaseStringVariableValue struct {
 	VariableId string  `json:"variable_id" url:"variable_id"`
 	Name       string  `json:"name" url:"name"`
 	Value      *string `json:"value,omitempty" url:"value,omitempty"`
+	type_      string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16512,15 +20272,28 @@ func (t *TestCaseStringVariableValue) GetExtraProperties() map[string]interface{
 	return t.extraProperties
 }
 
+func (t *TestCaseStringVariableValue) Type() string {
+	return t.type_
+}
+
 func (t *TestCaseStringVariableValue) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestCaseStringVariableValue
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestCaseStringVariableValue
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestCaseStringVariableValue(value)
+	*t = TestCaseStringVariableValue(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "STRING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16528,6 +20301,18 @@ func (t *TestCaseStringVariableValue) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestCaseStringVariableValue) MarshalJSON() ([]byte, error) {
+	type embed TestCaseStringVariableValue
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestCaseStringVariableValue) String() string {
@@ -16543,143 +20328,125 @@ func (t *TestCaseStringVariableValue) String() string {
 }
 
 type TestCaseVariableValue struct {
-	Type          string
-	String        *TestCaseStringVariableValue
-	Number        *TestCaseNumberVariableValue
-	Json          *TestCaseJsonVariableValue
-	ChatHistory   *TestCaseChatHistoryVariableValue
-	SearchResults *TestCaseSearchResultsVariableValue
-	Error         *TestCaseErrorVariableValue
-	FunctionCall  *TestCaseFunctionCallVariableValue
-	Array         *TestCaseArrayVariableValue
+	TestCaseStringVariableValue        *TestCaseStringVariableValue
+	TestCaseNumberVariableValue        *TestCaseNumberVariableValue
+	TestCaseJsonVariableValue          *TestCaseJsonVariableValue
+	TestCaseChatHistoryVariableValue   *TestCaseChatHistoryVariableValue
+	TestCaseSearchResultsVariableValue *TestCaseSearchResultsVariableValue
+	TestCaseErrorVariableValue         *TestCaseErrorVariableValue
+	TestCaseFunctionCallVariableValue  *TestCaseFunctionCallVariableValue
+	TestCaseArrayVariableValue         *TestCaseArrayVariableValue
 }
 
 func (t *TestCaseVariableValue) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestCaseStringVariableValue := new(TestCaseStringVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseStringVariableValue); err == nil {
+		t.TestCaseStringVariableValue = valueTestCaseStringVariableValue
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestCaseNumberVariableValue := new(TestCaseNumberVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseNumberVariableValue); err == nil {
+		t.TestCaseNumberVariableValue = valueTestCaseNumberVariableValue
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(TestCaseStringVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.String = value
-	case "NUMBER":
-		value := new(TestCaseNumberVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Number = value
-	case "JSON":
-		value := new(TestCaseJsonVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Json = value
-	case "CHAT_HISTORY":
-		value := new(TestCaseChatHistoryVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(TestCaseSearchResultsVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.SearchResults = value
-	case "ERROR":
-		value := new(TestCaseErrorVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Error = value
-	case "FUNCTION_CALL":
-		value := new(TestCaseFunctionCallVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.FunctionCall = value
-	case "ARRAY":
-		value := new(TestCaseArrayVariableValue)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Array = value
+	valueTestCaseJsonVariableValue := new(TestCaseJsonVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseJsonVariableValue); err == nil {
+		t.TestCaseJsonVariableValue = valueTestCaseJsonVariableValue
+		return nil
 	}
-	return nil
+	valueTestCaseChatHistoryVariableValue := new(TestCaseChatHistoryVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseChatHistoryVariableValue); err == nil {
+		t.TestCaseChatHistoryVariableValue = valueTestCaseChatHistoryVariableValue
+		return nil
+	}
+	valueTestCaseSearchResultsVariableValue := new(TestCaseSearchResultsVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseSearchResultsVariableValue); err == nil {
+		t.TestCaseSearchResultsVariableValue = valueTestCaseSearchResultsVariableValue
+		return nil
+	}
+	valueTestCaseErrorVariableValue := new(TestCaseErrorVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseErrorVariableValue); err == nil {
+		t.TestCaseErrorVariableValue = valueTestCaseErrorVariableValue
+		return nil
+	}
+	valueTestCaseFunctionCallVariableValue := new(TestCaseFunctionCallVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseFunctionCallVariableValue); err == nil {
+		t.TestCaseFunctionCallVariableValue = valueTestCaseFunctionCallVariableValue
+		return nil
+	}
+	valueTestCaseArrayVariableValue := new(TestCaseArrayVariableValue)
+	if err := json.Unmarshal(data, &valueTestCaseArrayVariableValue); err == nil {
+		t.TestCaseArrayVariableValue = valueTestCaseArrayVariableValue
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestCaseVariableValue) MarshalJSON() ([]byte, error) {
-	if t.String != nil {
-		return core.MarshalJSONWithExtraProperty(t.String, "type", "STRING")
+	if t.TestCaseStringVariableValue != nil {
+		return json.Marshal(t.TestCaseStringVariableValue)
 	}
-	if t.Number != nil {
-		return core.MarshalJSONWithExtraProperty(t.Number, "type", "NUMBER")
+	if t.TestCaseNumberVariableValue != nil {
+		return json.Marshal(t.TestCaseNumberVariableValue)
 	}
-	if t.Json != nil {
-		return core.MarshalJSONWithExtraProperty(t.Json, "type", "JSON")
+	if t.TestCaseJsonVariableValue != nil {
+		return json.Marshal(t.TestCaseJsonVariableValue)
 	}
-	if t.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(t.ChatHistory, "type", "CHAT_HISTORY")
+	if t.TestCaseChatHistoryVariableValue != nil {
+		return json.Marshal(t.TestCaseChatHistoryVariableValue)
 	}
-	if t.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(t.SearchResults, "type", "SEARCH_RESULTS")
+	if t.TestCaseSearchResultsVariableValue != nil {
+		return json.Marshal(t.TestCaseSearchResultsVariableValue)
 	}
-	if t.Error != nil {
-		return core.MarshalJSONWithExtraProperty(t.Error, "type", "ERROR")
+	if t.TestCaseErrorVariableValue != nil {
+		return json.Marshal(t.TestCaseErrorVariableValue)
 	}
-	if t.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(t.FunctionCall, "type", "FUNCTION_CALL")
+	if t.TestCaseFunctionCallVariableValue != nil {
+		return json.Marshal(t.TestCaseFunctionCallVariableValue)
 	}
-	if t.Array != nil {
-		return core.MarshalJSONWithExtraProperty(t.Array, "type", "ARRAY")
+	if t.TestCaseArrayVariableValue != nil {
+		return json.Marshal(t.TestCaseArrayVariableValue)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestCaseVariableValueVisitor interface {
-	VisitString(*TestCaseStringVariableValue) error
-	VisitNumber(*TestCaseNumberVariableValue) error
-	VisitJson(*TestCaseJsonVariableValue) error
-	VisitChatHistory(*TestCaseChatHistoryVariableValue) error
-	VisitSearchResults(*TestCaseSearchResultsVariableValue) error
-	VisitError(*TestCaseErrorVariableValue) error
-	VisitFunctionCall(*TestCaseFunctionCallVariableValue) error
-	VisitArray(*TestCaseArrayVariableValue) error
+	VisitTestCaseStringVariableValue(*TestCaseStringVariableValue) error
+	VisitTestCaseNumberVariableValue(*TestCaseNumberVariableValue) error
+	VisitTestCaseJsonVariableValue(*TestCaseJsonVariableValue) error
+	VisitTestCaseChatHistoryVariableValue(*TestCaseChatHistoryVariableValue) error
+	VisitTestCaseSearchResultsVariableValue(*TestCaseSearchResultsVariableValue) error
+	VisitTestCaseErrorVariableValue(*TestCaseErrorVariableValue) error
+	VisitTestCaseFunctionCallVariableValue(*TestCaseFunctionCallVariableValue) error
+	VisitTestCaseArrayVariableValue(*TestCaseArrayVariableValue) error
 }
 
 func (t *TestCaseVariableValue) Accept(visitor TestCaseVariableValueVisitor) error {
-	if t.String != nil {
-		return visitor.VisitString(t.String)
+	if t.TestCaseStringVariableValue != nil {
+		return visitor.VisitTestCaseStringVariableValue(t.TestCaseStringVariableValue)
 	}
-	if t.Number != nil {
-		return visitor.VisitNumber(t.Number)
+	if t.TestCaseNumberVariableValue != nil {
+		return visitor.VisitTestCaseNumberVariableValue(t.TestCaseNumberVariableValue)
 	}
-	if t.Json != nil {
-		return visitor.VisitJson(t.Json)
+	if t.TestCaseJsonVariableValue != nil {
+		return visitor.VisitTestCaseJsonVariableValue(t.TestCaseJsonVariableValue)
 	}
-	if t.ChatHistory != nil {
-		return visitor.VisitChatHistory(t.ChatHistory)
+	if t.TestCaseChatHistoryVariableValue != nil {
+		return visitor.VisitTestCaseChatHistoryVariableValue(t.TestCaseChatHistoryVariableValue)
 	}
-	if t.SearchResults != nil {
-		return visitor.VisitSearchResults(t.SearchResults)
+	if t.TestCaseSearchResultsVariableValue != nil {
+		return visitor.VisitTestCaseSearchResultsVariableValue(t.TestCaseSearchResultsVariableValue)
 	}
-	if t.Error != nil {
-		return visitor.VisitError(t.Error)
+	if t.TestCaseErrorVariableValue != nil {
+		return visitor.VisitTestCaseErrorVariableValue(t.TestCaseErrorVariableValue)
 	}
-	if t.FunctionCall != nil {
-		return visitor.VisitFunctionCall(t.FunctionCall)
+	if t.TestCaseFunctionCallVariableValue != nil {
+		return visitor.VisitTestCaseFunctionCallVariableValue(t.TestCaseFunctionCallVariableValue)
 	}
-	if t.Array != nil {
-		return visitor.VisitArray(t.Array)
+	if t.TestCaseArrayVariableValue != nil {
+		return visitor.VisitTestCaseArrayVariableValue(t.TestCaseArrayVariableValue)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 // Execution configuration for running a Test Suite against a Prompt Deployment
@@ -16687,6 +20454,7 @@ type TestSuiteRunDeploymentReleaseTagExecConfig struct {
 	Data *TestSuiteRunDeploymentReleaseTagExecConfigData `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16696,15 +20464,28 @@ func (t *TestSuiteRunDeploymentReleaseTagExecConfig) GetExtraProperties() map[st
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunDeploymentReleaseTagExecConfig) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunDeploymentReleaseTagExecConfig) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunDeploymentReleaseTagExecConfig
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunDeploymentReleaseTagExecConfig
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunDeploymentReleaseTagExecConfig(value)
+	*t = TestSuiteRunDeploymentReleaseTagExecConfig(unmarshaler.embed)
+	if unmarshaler.Type != "DEPLOYMENT_RELEASE_TAG" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "DEPLOYMENT_RELEASE_TAG", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16712,6 +20493,18 @@ func (t *TestSuiteRunDeploymentReleaseTagExecConfig) UnmarshalJSON(data []byte) 
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunDeploymentReleaseTagExecConfig) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunDeploymentReleaseTagExecConfig
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "DEPLOYMENT_RELEASE_TAG",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunDeploymentReleaseTagExecConfig) String() string {
@@ -16819,6 +20612,7 @@ type TestSuiteRunDeploymentReleaseTagExecConfigRequest struct {
 	Data *TestSuiteRunDeploymentReleaseTagExecConfigDataRequest `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -16828,15 +20622,28 @@ func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) GetExtraProperties()
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunDeploymentReleaseTagExecConfigRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunDeploymentReleaseTagExecConfigRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunDeploymentReleaseTagExecConfigRequest(value)
+	*t = TestSuiteRunDeploymentReleaseTagExecConfigRequest(unmarshaler.embed)
+	if unmarshaler.Type != "DEPLOYMENT_RELEASE_TAG" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "DEPLOYMENT_RELEASE_TAG", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -16844,6 +20651,18 @@ func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) UnmarshalJSON(data [
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunDeploymentReleaseTagExecConfigRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "DEPLOYMENT_RELEASE_TAG",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) String() string {
@@ -16859,143 +20678,117 @@ func (t *TestSuiteRunDeploymentReleaseTagExecConfigRequest) String() string {
 }
 
 type TestSuiteRunExecConfig struct {
-	Type                 string
-	DeploymentReleaseTag *TestSuiteRunDeploymentReleaseTagExecConfig
-	WorkflowReleaseTag   *TestSuiteRunWorkflowReleaseTagExecConfig
-	External             *TestSuiteRunExternalExecConfig
+	TestSuiteRunDeploymentReleaseTagExecConfig *TestSuiteRunDeploymentReleaseTagExecConfig
+	TestSuiteRunWorkflowReleaseTagExecConfig   *TestSuiteRunWorkflowReleaseTagExecConfig
+	TestSuiteRunExternalExecConfig             *TestSuiteRunExternalExecConfig
 }
 
 func (t *TestSuiteRunExecConfig) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteRunDeploymentReleaseTagExecConfig := new(TestSuiteRunDeploymentReleaseTagExecConfig)
+	if err := json.Unmarshal(data, &valueTestSuiteRunDeploymentReleaseTagExecConfig); err == nil {
+		t.TestSuiteRunDeploymentReleaseTagExecConfig = valueTestSuiteRunDeploymentReleaseTagExecConfig
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteRunWorkflowReleaseTagExecConfig := new(TestSuiteRunWorkflowReleaseTagExecConfig)
+	if err := json.Unmarshal(data, &valueTestSuiteRunWorkflowReleaseTagExecConfig); err == nil {
+		t.TestSuiteRunWorkflowReleaseTagExecConfig = valueTestSuiteRunWorkflowReleaseTagExecConfig
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "DEPLOYMENT_RELEASE_TAG":
-		value := new(TestSuiteRunDeploymentReleaseTagExecConfig)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.DeploymentReleaseTag = value
-	case "WORKFLOW_RELEASE_TAG":
-		value := new(TestSuiteRunWorkflowReleaseTagExecConfig)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.WorkflowReleaseTag = value
-	case "EXTERNAL":
-		value := new(TestSuiteRunExternalExecConfig)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.External = value
+	valueTestSuiteRunExternalExecConfig := new(TestSuiteRunExternalExecConfig)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExternalExecConfig); err == nil {
+		t.TestSuiteRunExternalExecConfig = valueTestSuiteRunExternalExecConfig
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteRunExecConfig) MarshalJSON() ([]byte, error) {
-	if t.DeploymentReleaseTag != nil {
-		return core.MarshalJSONWithExtraProperty(t.DeploymentReleaseTag, "type", "DEPLOYMENT_RELEASE_TAG")
+	if t.TestSuiteRunDeploymentReleaseTagExecConfig != nil {
+		return json.Marshal(t.TestSuiteRunDeploymentReleaseTagExecConfig)
 	}
-	if t.WorkflowReleaseTag != nil {
-		return core.MarshalJSONWithExtraProperty(t.WorkflowReleaseTag, "type", "WORKFLOW_RELEASE_TAG")
+	if t.TestSuiteRunWorkflowReleaseTagExecConfig != nil {
+		return json.Marshal(t.TestSuiteRunWorkflowReleaseTagExecConfig)
 	}
-	if t.External != nil {
-		return core.MarshalJSONWithExtraProperty(t.External, "type", "EXTERNAL")
+	if t.TestSuiteRunExternalExecConfig != nil {
+		return json.Marshal(t.TestSuiteRunExternalExecConfig)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunExecConfigVisitor interface {
-	VisitDeploymentReleaseTag(*TestSuiteRunDeploymentReleaseTagExecConfig) error
-	VisitWorkflowReleaseTag(*TestSuiteRunWorkflowReleaseTagExecConfig) error
-	VisitExternal(*TestSuiteRunExternalExecConfig) error
+	VisitTestSuiteRunDeploymentReleaseTagExecConfig(*TestSuiteRunDeploymentReleaseTagExecConfig) error
+	VisitTestSuiteRunWorkflowReleaseTagExecConfig(*TestSuiteRunWorkflowReleaseTagExecConfig) error
+	VisitTestSuiteRunExternalExecConfig(*TestSuiteRunExternalExecConfig) error
 }
 
 func (t *TestSuiteRunExecConfig) Accept(visitor TestSuiteRunExecConfigVisitor) error {
-	if t.DeploymentReleaseTag != nil {
-		return visitor.VisitDeploymentReleaseTag(t.DeploymentReleaseTag)
+	if t.TestSuiteRunDeploymentReleaseTagExecConfig != nil {
+		return visitor.VisitTestSuiteRunDeploymentReleaseTagExecConfig(t.TestSuiteRunDeploymentReleaseTagExecConfig)
 	}
-	if t.WorkflowReleaseTag != nil {
-		return visitor.VisitWorkflowReleaseTag(t.WorkflowReleaseTag)
+	if t.TestSuiteRunWorkflowReleaseTagExecConfig != nil {
+		return visitor.VisitTestSuiteRunWorkflowReleaseTagExecConfig(t.TestSuiteRunWorkflowReleaseTagExecConfig)
 	}
-	if t.External != nil {
-		return visitor.VisitExternal(t.External)
+	if t.TestSuiteRunExternalExecConfig != nil {
+		return visitor.VisitTestSuiteRunExternalExecConfig(t.TestSuiteRunExternalExecConfig)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunExecConfigRequest struct {
-	Type                 string
-	DeploymentReleaseTag *TestSuiteRunDeploymentReleaseTagExecConfigRequest
-	WorkflowReleaseTag   *TestSuiteRunWorkflowReleaseTagExecConfigRequest
-	External             *TestSuiteRunExternalExecConfigRequest
+	TestSuiteRunDeploymentReleaseTagExecConfigRequest *TestSuiteRunDeploymentReleaseTagExecConfigRequest
+	TestSuiteRunWorkflowReleaseTagExecConfigRequest   *TestSuiteRunWorkflowReleaseTagExecConfigRequest
+	TestSuiteRunExternalExecConfigRequest             *TestSuiteRunExternalExecConfigRequest
 }
 
 func (t *TestSuiteRunExecConfigRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteRunDeploymentReleaseTagExecConfigRequest := new(TestSuiteRunDeploymentReleaseTagExecConfigRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteRunDeploymentReleaseTagExecConfigRequest); err == nil {
+		t.TestSuiteRunDeploymentReleaseTagExecConfigRequest = valueTestSuiteRunDeploymentReleaseTagExecConfigRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteRunWorkflowReleaseTagExecConfigRequest := new(TestSuiteRunWorkflowReleaseTagExecConfigRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteRunWorkflowReleaseTagExecConfigRequest); err == nil {
+		t.TestSuiteRunWorkflowReleaseTagExecConfigRequest = valueTestSuiteRunWorkflowReleaseTagExecConfigRequest
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "DEPLOYMENT_RELEASE_TAG":
-		value := new(TestSuiteRunDeploymentReleaseTagExecConfigRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.DeploymentReleaseTag = value
-	case "WORKFLOW_RELEASE_TAG":
-		value := new(TestSuiteRunWorkflowReleaseTagExecConfigRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.WorkflowReleaseTag = value
-	case "EXTERNAL":
-		value := new(TestSuiteRunExternalExecConfigRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.External = value
+	valueTestSuiteRunExternalExecConfigRequest := new(TestSuiteRunExternalExecConfigRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExternalExecConfigRequest); err == nil {
+		t.TestSuiteRunExternalExecConfigRequest = valueTestSuiteRunExternalExecConfigRequest
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteRunExecConfigRequest) MarshalJSON() ([]byte, error) {
-	if t.DeploymentReleaseTag != nil {
-		return core.MarshalJSONWithExtraProperty(t.DeploymentReleaseTag, "type", "DEPLOYMENT_RELEASE_TAG")
+	if t.TestSuiteRunDeploymentReleaseTagExecConfigRequest != nil {
+		return json.Marshal(t.TestSuiteRunDeploymentReleaseTagExecConfigRequest)
 	}
-	if t.WorkflowReleaseTag != nil {
-		return core.MarshalJSONWithExtraProperty(t.WorkflowReleaseTag, "type", "WORKFLOW_RELEASE_TAG")
+	if t.TestSuiteRunWorkflowReleaseTagExecConfigRequest != nil {
+		return json.Marshal(t.TestSuiteRunWorkflowReleaseTagExecConfigRequest)
 	}
-	if t.External != nil {
-		return core.MarshalJSONWithExtraProperty(t.External, "type", "EXTERNAL")
+	if t.TestSuiteRunExternalExecConfigRequest != nil {
+		return json.Marshal(t.TestSuiteRunExternalExecConfigRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunExecConfigRequestVisitor interface {
-	VisitDeploymentReleaseTag(*TestSuiteRunDeploymentReleaseTagExecConfigRequest) error
-	VisitWorkflowReleaseTag(*TestSuiteRunWorkflowReleaseTagExecConfigRequest) error
-	VisitExternal(*TestSuiteRunExternalExecConfigRequest) error
+	VisitTestSuiteRunDeploymentReleaseTagExecConfigRequest(*TestSuiteRunDeploymentReleaseTagExecConfigRequest) error
+	VisitTestSuiteRunWorkflowReleaseTagExecConfigRequest(*TestSuiteRunWorkflowReleaseTagExecConfigRequest) error
+	VisitTestSuiteRunExternalExecConfigRequest(*TestSuiteRunExternalExecConfigRequest) error
 }
 
 func (t *TestSuiteRunExecConfigRequest) Accept(visitor TestSuiteRunExecConfigRequestVisitor) error {
-	if t.DeploymentReleaseTag != nil {
-		return visitor.VisitDeploymentReleaseTag(t.DeploymentReleaseTag)
+	if t.TestSuiteRunDeploymentReleaseTagExecConfigRequest != nil {
+		return visitor.VisitTestSuiteRunDeploymentReleaseTagExecConfigRequest(t.TestSuiteRunDeploymentReleaseTagExecConfigRequest)
 	}
-	if t.WorkflowReleaseTag != nil {
-		return visitor.VisitWorkflowReleaseTag(t.WorkflowReleaseTag)
+	if t.TestSuiteRunWorkflowReleaseTagExecConfigRequest != nil {
+		return visitor.VisitTestSuiteRunWorkflowReleaseTagExecConfigRequest(t.TestSuiteRunWorkflowReleaseTagExecConfigRequest)
 	}
-	if t.External != nil {
-		return visitor.VisitExternal(t.External)
+	if t.TestSuiteRunExternalExecConfigRequest != nil {
+		return visitor.VisitTestSuiteRunExternalExecConfigRequest(t.TestSuiteRunExternalExecConfigRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunExecution struct {
@@ -17047,6 +20840,7 @@ type TestSuiteRunExecutionArrayOutput struct {
 	Name             string                  `json:"name" url:"name"`
 	Value            []*ArrayVellumValueItem `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string                  `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17056,15 +20850,28 @@ func (t *TestSuiteRunExecutionArrayOutput) GetExtraProperties() map[string]inter
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionArrayOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionArrayOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionArrayOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionArrayOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionArrayOutput(value)
+	*t = TestSuiteRunExecutionArrayOutput(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ARRAY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17072,6 +20879,18 @@ func (t *TestSuiteRunExecutionArrayOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionArrayOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionArrayOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionArrayOutput) String() string {
@@ -17091,6 +20910,7 @@ type TestSuiteRunExecutionChatHistoryOutput struct {
 	Name             string         `json:"name" url:"name"`
 	Value            []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string         `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17100,15 +20920,28 @@ func (t *TestSuiteRunExecutionChatHistoryOutput) GetExtraProperties() map[string
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionChatHistoryOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionChatHistoryOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionChatHistoryOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionChatHistoryOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionChatHistoryOutput(value)
+	*t = TestSuiteRunExecutionChatHistoryOutput(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17116,6 +20949,18 @@ func (t *TestSuiteRunExecutionChatHistoryOutput) UnmarshalJSON(data []byte) erro
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionChatHistoryOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionChatHistoryOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionChatHistoryOutput) String() string {
@@ -17135,6 +20980,7 @@ type TestSuiteRunExecutionErrorOutput struct {
 	Name             string       `json:"name" url:"name"`
 	Value            *VellumError `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string       `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17144,15 +20990,28 @@ func (t *TestSuiteRunExecutionErrorOutput) GetExtraProperties() map[string]inter
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionErrorOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionErrorOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionErrorOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionErrorOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionErrorOutput(value)
+	*t = TestSuiteRunExecutionErrorOutput(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ERROR", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17160,6 +21019,18 @@ func (t *TestSuiteRunExecutionErrorOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionErrorOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionErrorOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionErrorOutput) String() string {
@@ -17179,6 +21050,7 @@ type TestSuiteRunExecutionFunctionCallOutput struct {
 	Name             string        `json:"name" url:"name"`
 	Value            *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string        `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17188,15 +21060,28 @@ func (t *TestSuiteRunExecutionFunctionCallOutput) GetExtraProperties() map[strin
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionFunctionCallOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionFunctionCallOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionFunctionCallOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionFunctionCallOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionFunctionCallOutput(value)
+	*t = TestSuiteRunExecutionFunctionCallOutput(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17204,6 +21089,18 @@ func (t *TestSuiteRunExecutionFunctionCallOutput) UnmarshalJSON(data []byte) err
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionFunctionCallOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionFunctionCallOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionFunctionCallOutput) String() string {
@@ -17223,6 +21120,7 @@ type TestSuiteRunExecutionJsonOutput struct {
 	Name             string      `json:"name" url:"name"`
 	Value            interface{} `json:"value" url:"value"`
 	OutputVariableId string      `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17232,15 +21130,28 @@ func (t *TestSuiteRunExecutionJsonOutput) GetExtraProperties() map[string]interf
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionJsonOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionJsonOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionJsonOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionJsonOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionJsonOutput(value)
+	*t = TestSuiteRunExecutionJsonOutput(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "JSON", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17248,6 +21159,18 @@ func (t *TestSuiteRunExecutionJsonOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionJsonOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionJsonOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionJsonOutput) String() string {
@@ -17354,6 +21277,7 @@ type TestSuiteRunExecutionNumberOutput struct {
 	Name             string   `json:"name" url:"name"`
 	Value            *float64 `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string   `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17363,15 +21287,28 @@ func (t *TestSuiteRunExecutionNumberOutput) GetExtraProperties() map[string]inte
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionNumberOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionNumberOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionNumberOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionNumberOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionNumberOutput(value)
+	*t = TestSuiteRunExecutionNumberOutput(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "NUMBER", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17379,6 +21316,18 @@ func (t *TestSuiteRunExecutionNumberOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionNumberOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionNumberOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionNumberOutput) String() string {
@@ -17394,143 +21343,125 @@ func (t *TestSuiteRunExecutionNumberOutput) String() string {
 }
 
 type TestSuiteRunExecutionOutput struct {
-	Type          string
-	String        *TestSuiteRunExecutionStringOutput
-	Number        *TestSuiteRunExecutionNumberOutput
-	Json          *TestSuiteRunExecutionJsonOutput
-	ChatHistory   *TestSuiteRunExecutionChatHistoryOutput
-	SearchResults *TestSuiteRunExecutionSearchResultsOutput
-	Error         *TestSuiteRunExecutionErrorOutput
-	FunctionCall  *TestSuiteRunExecutionFunctionCallOutput
-	Array         *TestSuiteRunExecutionArrayOutput
+	TestSuiteRunExecutionStringOutput        *TestSuiteRunExecutionStringOutput
+	TestSuiteRunExecutionNumberOutput        *TestSuiteRunExecutionNumberOutput
+	TestSuiteRunExecutionJsonOutput          *TestSuiteRunExecutionJsonOutput
+	TestSuiteRunExecutionChatHistoryOutput   *TestSuiteRunExecutionChatHistoryOutput
+	TestSuiteRunExecutionSearchResultsOutput *TestSuiteRunExecutionSearchResultsOutput
+	TestSuiteRunExecutionErrorOutput         *TestSuiteRunExecutionErrorOutput
+	TestSuiteRunExecutionFunctionCallOutput  *TestSuiteRunExecutionFunctionCallOutput
+	TestSuiteRunExecutionArrayOutput         *TestSuiteRunExecutionArrayOutput
 }
 
 func (t *TestSuiteRunExecutionOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteRunExecutionStringOutput := new(TestSuiteRunExecutionStringOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionStringOutput); err == nil {
+		t.TestSuiteRunExecutionStringOutput = valueTestSuiteRunExecutionStringOutput
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteRunExecutionNumberOutput := new(TestSuiteRunExecutionNumberOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionNumberOutput); err == nil {
+		t.TestSuiteRunExecutionNumberOutput = valueTestSuiteRunExecutionNumberOutput
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(TestSuiteRunExecutionStringOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.String = value
-	case "NUMBER":
-		value := new(TestSuiteRunExecutionNumberOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Number = value
-	case "JSON":
-		value := new(TestSuiteRunExecutionJsonOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Json = value
-	case "CHAT_HISTORY":
-		value := new(TestSuiteRunExecutionChatHistoryOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(TestSuiteRunExecutionSearchResultsOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.SearchResults = value
-	case "ERROR":
-		value := new(TestSuiteRunExecutionErrorOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Error = value
-	case "FUNCTION_CALL":
-		value := new(TestSuiteRunExecutionFunctionCallOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.FunctionCall = value
-	case "ARRAY":
-		value := new(TestSuiteRunExecutionArrayOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Array = value
+	valueTestSuiteRunExecutionJsonOutput := new(TestSuiteRunExecutionJsonOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionJsonOutput); err == nil {
+		t.TestSuiteRunExecutionJsonOutput = valueTestSuiteRunExecutionJsonOutput
+		return nil
 	}
-	return nil
+	valueTestSuiteRunExecutionChatHistoryOutput := new(TestSuiteRunExecutionChatHistoryOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionChatHistoryOutput); err == nil {
+		t.TestSuiteRunExecutionChatHistoryOutput = valueTestSuiteRunExecutionChatHistoryOutput
+		return nil
+	}
+	valueTestSuiteRunExecutionSearchResultsOutput := new(TestSuiteRunExecutionSearchResultsOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionSearchResultsOutput); err == nil {
+		t.TestSuiteRunExecutionSearchResultsOutput = valueTestSuiteRunExecutionSearchResultsOutput
+		return nil
+	}
+	valueTestSuiteRunExecutionErrorOutput := new(TestSuiteRunExecutionErrorOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionErrorOutput); err == nil {
+		t.TestSuiteRunExecutionErrorOutput = valueTestSuiteRunExecutionErrorOutput
+		return nil
+	}
+	valueTestSuiteRunExecutionFunctionCallOutput := new(TestSuiteRunExecutionFunctionCallOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionFunctionCallOutput); err == nil {
+		t.TestSuiteRunExecutionFunctionCallOutput = valueTestSuiteRunExecutionFunctionCallOutput
+		return nil
+	}
+	valueTestSuiteRunExecutionArrayOutput := new(TestSuiteRunExecutionArrayOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunExecutionArrayOutput); err == nil {
+		t.TestSuiteRunExecutionArrayOutput = valueTestSuiteRunExecutionArrayOutput
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteRunExecutionOutput) MarshalJSON() ([]byte, error) {
-	if t.String != nil {
-		return core.MarshalJSONWithExtraProperty(t.String, "type", "STRING")
+	if t.TestSuiteRunExecutionStringOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionStringOutput)
 	}
-	if t.Number != nil {
-		return core.MarshalJSONWithExtraProperty(t.Number, "type", "NUMBER")
+	if t.TestSuiteRunExecutionNumberOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionNumberOutput)
 	}
-	if t.Json != nil {
-		return core.MarshalJSONWithExtraProperty(t.Json, "type", "JSON")
+	if t.TestSuiteRunExecutionJsonOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionJsonOutput)
 	}
-	if t.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(t.ChatHistory, "type", "CHAT_HISTORY")
+	if t.TestSuiteRunExecutionChatHistoryOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionChatHistoryOutput)
 	}
-	if t.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(t.SearchResults, "type", "SEARCH_RESULTS")
+	if t.TestSuiteRunExecutionSearchResultsOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionSearchResultsOutput)
 	}
-	if t.Error != nil {
-		return core.MarshalJSONWithExtraProperty(t.Error, "type", "ERROR")
+	if t.TestSuiteRunExecutionErrorOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionErrorOutput)
 	}
-	if t.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(t.FunctionCall, "type", "FUNCTION_CALL")
+	if t.TestSuiteRunExecutionFunctionCallOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionFunctionCallOutput)
 	}
-	if t.Array != nil {
-		return core.MarshalJSONWithExtraProperty(t.Array, "type", "ARRAY")
+	if t.TestSuiteRunExecutionArrayOutput != nil {
+		return json.Marshal(t.TestSuiteRunExecutionArrayOutput)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunExecutionOutputVisitor interface {
-	VisitString(*TestSuiteRunExecutionStringOutput) error
-	VisitNumber(*TestSuiteRunExecutionNumberOutput) error
-	VisitJson(*TestSuiteRunExecutionJsonOutput) error
-	VisitChatHistory(*TestSuiteRunExecutionChatHistoryOutput) error
-	VisitSearchResults(*TestSuiteRunExecutionSearchResultsOutput) error
-	VisitError(*TestSuiteRunExecutionErrorOutput) error
-	VisitFunctionCall(*TestSuiteRunExecutionFunctionCallOutput) error
-	VisitArray(*TestSuiteRunExecutionArrayOutput) error
+	VisitTestSuiteRunExecutionStringOutput(*TestSuiteRunExecutionStringOutput) error
+	VisitTestSuiteRunExecutionNumberOutput(*TestSuiteRunExecutionNumberOutput) error
+	VisitTestSuiteRunExecutionJsonOutput(*TestSuiteRunExecutionJsonOutput) error
+	VisitTestSuiteRunExecutionChatHistoryOutput(*TestSuiteRunExecutionChatHistoryOutput) error
+	VisitTestSuiteRunExecutionSearchResultsOutput(*TestSuiteRunExecutionSearchResultsOutput) error
+	VisitTestSuiteRunExecutionErrorOutput(*TestSuiteRunExecutionErrorOutput) error
+	VisitTestSuiteRunExecutionFunctionCallOutput(*TestSuiteRunExecutionFunctionCallOutput) error
+	VisitTestSuiteRunExecutionArrayOutput(*TestSuiteRunExecutionArrayOutput) error
 }
 
 func (t *TestSuiteRunExecutionOutput) Accept(visitor TestSuiteRunExecutionOutputVisitor) error {
-	if t.String != nil {
-		return visitor.VisitString(t.String)
+	if t.TestSuiteRunExecutionStringOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionStringOutput(t.TestSuiteRunExecutionStringOutput)
 	}
-	if t.Number != nil {
-		return visitor.VisitNumber(t.Number)
+	if t.TestSuiteRunExecutionNumberOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionNumberOutput(t.TestSuiteRunExecutionNumberOutput)
 	}
-	if t.Json != nil {
-		return visitor.VisitJson(t.Json)
+	if t.TestSuiteRunExecutionJsonOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionJsonOutput(t.TestSuiteRunExecutionJsonOutput)
 	}
-	if t.ChatHistory != nil {
-		return visitor.VisitChatHistory(t.ChatHistory)
+	if t.TestSuiteRunExecutionChatHistoryOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionChatHistoryOutput(t.TestSuiteRunExecutionChatHistoryOutput)
 	}
-	if t.SearchResults != nil {
-		return visitor.VisitSearchResults(t.SearchResults)
+	if t.TestSuiteRunExecutionSearchResultsOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionSearchResultsOutput(t.TestSuiteRunExecutionSearchResultsOutput)
 	}
-	if t.Error != nil {
-		return visitor.VisitError(t.Error)
+	if t.TestSuiteRunExecutionErrorOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionErrorOutput(t.TestSuiteRunExecutionErrorOutput)
 	}
-	if t.FunctionCall != nil {
-		return visitor.VisitFunctionCall(t.FunctionCall)
+	if t.TestSuiteRunExecutionFunctionCallOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionFunctionCallOutput(t.TestSuiteRunExecutionFunctionCallOutput)
 	}
-	if t.Array != nil {
-		return visitor.VisitArray(t.Array)
+	if t.TestSuiteRunExecutionArrayOutput != nil {
+		return visitor.VisitTestSuiteRunExecutionArrayOutput(t.TestSuiteRunExecutionArrayOutput)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 // Execution output of an entity evaluated during a Test Suite Run that is of type SEARCH_RESULTS
@@ -17538,6 +21469,7 @@ type TestSuiteRunExecutionSearchResultsOutput struct {
 	Name             string          `json:"name" url:"name"`
 	Value            []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string          `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17547,15 +21479,28 @@ func (t *TestSuiteRunExecutionSearchResultsOutput) GetExtraProperties() map[stri
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionSearchResultsOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionSearchResultsOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionSearchResultsOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionSearchResultsOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionSearchResultsOutput(value)
+	*t = TestSuiteRunExecutionSearchResultsOutput(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17563,6 +21508,18 @@ func (t *TestSuiteRunExecutionSearchResultsOutput) UnmarshalJSON(data []byte) er
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionSearchResultsOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionSearchResultsOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionSearchResultsOutput) String() string {
@@ -17582,6 +21539,7 @@ type TestSuiteRunExecutionStringOutput struct {
 	Name             string  `json:"name" url:"name"`
 	Value            *string `json:"value,omitempty" url:"value,omitempty"`
 	OutputVariableId string  `json:"output_variable_id" url:"output_variable_id"`
+	type_            string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17591,15 +21549,28 @@ func (t *TestSuiteRunExecutionStringOutput) GetExtraProperties() map[string]inte
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExecutionStringOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExecutionStringOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExecutionStringOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExecutionStringOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExecutionStringOutput(value)
+	*t = TestSuiteRunExecutionStringOutput(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "STRING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17607,6 +21578,18 @@ func (t *TestSuiteRunExecutionStringOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExecutionStringOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExecutionStringOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExecutionStringOutput) String() string {
@@ -17626,6 +21609,7 @@ type TestSuiteRunExternalExecConfig struct {
 	Data *TestSuiteRunExternalExecConfigData `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17635,15 +21619,28 @@ func (t *TestSuiteRunExternalExecConfig) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExternalExecConfig) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExternalExecConfig) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExternalExecConfig
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExternalExecConfig
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExternalExecConfig(value)
+	*t = TestSuiteRunExternalExecConfig(unmarshaler.embed)
+	if unmarshaler.Type != "EXTERNAL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "EXTERNAL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17651,6 +21648,18 @@ func (t *TestSuiteRunExternalExecConfig) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExternalExecConfig) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExternalExecConfig
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "EXTERNAL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExternalExecConfig) String() string {
@@ -17754,6 +21763,7 @@ type TestSuiteRunExternalExecConfigRequest struct {
 	Data *TestSuiteRunExternalExecConfigDataRequest `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17763,15 +21773,28 @@ func (t *TestSuiteRunExternalExecConfigRequest) GetExtraProperties() map[string]
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunExternalExecConfigRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunExternalExecConfigRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunExternalExecConfigRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunExternalExecConfigRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunExternalExecConfigRequest(value)
+	*t = TestSuiteRunExternalExecConfigRequest(unmarshaler.embed)
+	if unmarshaler.Type != "EXTERNAL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "EXTERNAL", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17779,6 +21802,18 @@ func (t *TestSuiteRunExternalExecConfigRequest) UnmarshalJSON(data []byte) error
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunExternalExecConfigRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunExternalExecConfigRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "EXTERNAL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunExternalExecConfigRequest) String() string {
@@ -17797,6 +21832,7 @@ func (t *TestSuiteRunExternalExecConfigRequest) String() string {
 type TestSuiteRunMetricErrorOutput struct {
 	Value *VellumError `json:"value" url:"value"`
 	Name  string       `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17806,15 +21842,28 @@ func (t *TestSuiteRunMetricErrorOutput) GetExtraProperties() map[string]interfac
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunMetricErrorOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunMetricErrorOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunMetricErrorOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunMetricErrorOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunMetricErrorOutput(value)
+	*t = TestSuiteRunMetricErrorOutput(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "ERROR", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17822,6 +21871,18 @@ func (t *TestSuiteRunMetricErrorOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunMetricErrorOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunMetricErrorOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunMetricErrorOutput) String() string {
@@ -17840,6 +21901,7 @@ func (t *TestSuiteRunMetricErrorOutput) String() string {
 type TestSuiteRunMetricNumberOutput struct {
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
 	Name  string   `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17849,15 +21911,28 @@ func (t *TestSuiteRunMetricNumberOutput) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunMetricNumberOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunMetricNumberOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunMetricNumberOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunMetricNumberOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunMetricNumberOutput(value)
+	*t = TestSuiteRunMetricNumberOutput(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "NUMBER", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17865,6 +21940,18 @@ func (t *TestSuiteRunMetricNumberOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunMetricNumberOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunMetricNumberOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunMetricNumberOutput) String() string {
@@ -17880,79 +21967,67 @@ func (t *TestSuiteRunMetricNumberOutput) String() string {
 }
 
 type TestSuiteRunMetricOutput struct {
-	Type   string
-	String *TestSuiteRunMetricStringOutput
-	Number *TestSuiteRunMetricNumberOutput
-	Error  *TestSuiteRunMetricErrorOutput
+	TestSuiteRunMetricStringOutput *TestSuiteRunMetricStringOutput
+	TestSuiteRunMetricNumberOutput *TestSuiteRunMetricNumberOutput
+	TestSuiteRunMetricErrorOutput  *TestSuiteRunMetricErrorOutput
 }
 
 func (t *TestSuiteRunMetricOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteRunMetricStringOutput := new(TestSuiteRunMetricStringOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunMetricStringOutput); err == nil {
+		t.TestSuiteRunMetricStringOutput = valueTestSuiteRunMetricStringOutput
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteRunMetricNumberOutput := new(TestSuiteRunMetricNumberOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunMetricNumberOutput); err == nil {
+		t.TestSuiteRunMetricNumberOutput = valueTestSuiteRunMetricNumberOutput
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(TestSuiteRunMetricStringOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.String = value
-	case "NUMBER":
-		value := new(TestSuiteRunMetricNumberOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Number = value
-	case "ERROR":
-		value := new(TestSuiteRunMetricErrorOutput)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Error = value
+	valueTestSuiteRunMetricErrorOutput := new(TestSuiteRunMetricErrorOutput)
+	if err := json.Unmarshal(data, &valueTestSuiteRunMetricErrorOutput); err == nil {
+		t.TestSuiteRunMetricErrorOutput = valueTestSuiteRunMetricErrorOutput
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteRunMetricOutput) MarshalJSON() ([]byte, error) {
-	if t.String != nil {
-		return core.MarshalJSONWithExtraProperty(t.String, "type", "STRING")
+	if t.TestSuiteRunMetricStringOutput != nil {
+		return json.Marshal(t.TestSuiteRunMetricStringOutput)
 	}
-	if t.Number != nil {
-		return core.MarshalJSONWithExtraProperty(t.Number, "type", "NUMBER")
+	if t.TestSuiteRunMetricNumberOutput != nil {
+		return json.Marshal(t.TestSuiteRunMetricNumberOutput)
 	}
-	if t.Error != nil {
-		return core.MarshalJSONWithExtraProperty(t.Error, "type", "ERROR")
+	if t.TestSuiteRunMetricErrorOutput != nil {
+		return json.Marshal(t.TestSuiteRunMetricErrorOutput)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteRunMetricOutputVisitor interface {
-	VisitString(*TestSuiteRunMetricStringOutput) error
-	VisitNumber(*TestSuiteRunMetricNumberOutput) error
-	VisitError(*TestSuiteRunMetricErrorOutput) error
+	VisitTestSuiteRunMetricStringOutput(*TestSuiteRunMetricStringOutput) error
+	VisitTestSuiteRunMetricNumberOutput(*TestSuiteRunMetricNumberOutput) error
+	VisitTestSuiteRunMetricErrorOutput(*TestSuiteRunMetricErrorOutput) error
 }
 
 func (t *TestSuiteRunMetricOutput) Accept(visitor TestSuiteRunMetricOutputVisitor) error {
-	if t.String != nil {
-		return visitor.VisitString(t.String)
+	if t.TestSuiteRunMetricStringOutput != nil {
+		return visitor.VisitTestSuiteRunMetricStringOutput(t.TestSuiteRunMetricStringOutput)
 	}
-	if t.Number != nil {
-		return visitor.VisitNumber(t.Number)
+	if t.TestSuiteRunMetricNumberOutput != nil {
+		return visitor.VisitTestSuiteRunMetricNumberOutput(t.TestSuiteRunMetricNumberOutput)
 	}
-	if t.Error != nil {
-		return visitor.VisitError(t.Error)
+	if t.TestSuiteRunMetricErrorOutput != nil {
+		return visitor.VisitTestSuiteRunMetricErrorOutput(t.TestSuiteRunMetricErrorOutput)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 // Output for a test suite run metric that is of type STRING
 type TestSuiteRunMetricStringOutput struct {
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
 	Name  string  `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -17962,15 +22037,28 @@ func (t *TestSuiteRunMetricStringOutput) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunMetricStringOutput) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunMetricStringOutput) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunMetricStringOutput
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunMetricStringOutput
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunMetricStringOutput(value)
+	*t = TestSuiteRunMetricStringOutput(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "STRING", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -17978,6 +22066,18 @@ func (t *TestSuiteRunMetricStringOutput) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunMetricStringOutput) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunMetricStringOutput
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunMetricStringOutput) String() string {
@@ -18147,6 +22247,7 @@ type TestSuiteRunWorkflowReleaseTagExecConfig struct {
 	Data *TestSuiteRunWorkflowReleaseTagExecConfigData `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18156,15 +22257,28 @@ func (t *TestSuiteRunWorkflowReleaseTagExecConfig) GetExtraProperties() map[stri
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunWorkflowReleaseTagExecConfig) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunWorkflowReleaseTagExecConfig) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunWorkflowReleaseTagExecConfig
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunWorkflowReleaseTagExecConfig
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunWorkflowReleaseTagExecConfig(value)
+	*t = TestSuiteRunWorkflowReleaseTagExecConfig(unmarshaler.embed)
+	if unmarshaler.Type != "WORKFLOW_RELEASE_TAG" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "WORKFLOW_RELEASE_TAG", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18172,6 +22286,18 @@ func (t *TestSuiteRunWorkflowReleaseTagExecConfig) UnmarshalJSON(data []byte) er
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunWorkflowReleaseTagExecConfig) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunWorkflowReleaseTagExecConfig
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "WORKFLOW_RELEASE_TAG",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunWorkflowReleaseTagExecConfig) String() string {
@@ -18279,6 +22405,7 @@ type TestSuiteRunWorkflowReleaseTagExecConfigRequest struct {
 	Data *TestSuiteRunWorkflowReleaseTagExecConfigDataRequest `json:"data" url:"data"`
 	// Optionally specify a subset of test case ids to run. If not provided, all test cases within the test suite will be run by default.
 	TestCaseIds []string `json:"test_case_ids,omitempty" url:"test_case_ids,omitempty"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18288,15 +22415,28 @@ func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) GetExtraProperties() m
 	return t.extraProperties
 }
 
+func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteRunWorkflowReleaseTagExecConfigRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteRunWorkflowReleaseTagExecConfigRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteRunWorkflowReleaseTagExecConfigRequest(value)
+	*t = TestSuiteRunWorkflowReleaseTagExecConfigRequest(unmarshaler.embed)
+	if unmarshaler.Type != "WORKFLOW_RELEASE_TAG" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "WORKFLOW_RELEASE_TAG", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18304,6 +22444,18 @@ func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) UnmarshalJSON(data []b
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteRunWorkflowReleaseTagExecConfigRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "WORKFLOW_RELEASE_TAG",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteRunWorkflowReleaseTagExecConfigRequest) String() string {
@@ -18364,178 +22516,151 @@ func (t *TestSuiteTestCase) String() string {
 }
 
 type TestSuiteTestCaseBulkOperationRequest struct {
-	Type    string
-	Create  *TestSuiteTestCaseCreateBulkOperationRequest
-	Replace *TestSuiteTestCaseReplaceBulkOperationRequest
-	Upsert  *TestSuiteTestCaseUpsertBulkOperationRequest
-	Delete  *TestSuiteTestCaseDeleteBulkOperationRequest
+	TestSuiteTestCaseCreateBulkOperationRequest  *TestSuiteTestCaseCreateBulkOperationRequest
+	TestSuiteTestCaseReplaceBulkOperationRequest *TestSuiteTestCaseReplaceBulkOperationRequest
+	TestSuiteTestCaseUpsertBulkOperationRequest  *TestSuiteTestCaseUpsertBulkOperationRequest
+	TestSuiteTestCaseDeleteBulkOperationRequest  *TestSuiteTestCaseDeleteBulkOperationRequest
 }
 
 func (t *TestSuiteTestCaseBulkOperationRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteTestCaseCreateBulkOperationRequest := new(TestSuiteTestCaseCreateBulkOperationRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseCreateBulkOperationRequest); err == nil {
+		t.TestSuiteTestCaseCreateBulkOperationRequest = valueTestSuiteTestCaseCreateBulkOperationRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteTestCaseReplaceBulkOperationRequest := new(TestSuiteTestCaseReplaceBulkOperationRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseReplaceBulkOperationRequest); err == nil {
+		t.TestSuiteTestCaseReplaceBulkOperationRequest = valueTestSuiteTestCaseReplaceBulkOperationRequest
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "CREATE":
-		value := new(TestSuiteTestCaseCreateBulkOperationRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Create = value
-	case "REPLACE":
-		value := new(TestSuiteTestCaseReplaceBulkOperationRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Replace = value
-	case "UPSERT":
-		value := new(TestSuiteTestCaseUpsertBulkOperationRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Upsert = value
-	case "DELETE":
-		value := new(TestSuiteTestCaseDeleteBulkOperationRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Delete = value
+	valueTestSuiteTestCaseUpsertBulkOperationRequest := new(TestSuiteTestCaseUpsertBulkOperationRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseUpsertBulkOperationRequest); err == nil {
+		t.TestSuiteTestCaseUpsertBulkOperationRequest = valueTestSuiteTestCaseUpsertBulkOperationRequest
+		return nil
 	}
-	return nil
+	valueTestSuiteTestCaseDeleteBulkOperationRequest := new(TestSuiteTestCaseDeleteBulkOperationRequest)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseDeleteBulkOperationRequest); err == nil {
+		t.TestSuiteTestCaseDeleteBulkOperationRequest = valueTestSuiteTestCaseDeleteBulkOperationRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteTestCaseBulkOperationRequest) MarshalJSON() ([]byte, error) {
-	if t.Create != nil {
-		return core.MarshalJSONWithExtraProperty(t.Create, "type", "CREATE")
+	if t.TestSuiteTestCaseCreateBulkOperationRequest != nil {
+		return json.Marshal(t.TestSuiteTestCaseCreateBulkOperationRequest)
 	}
-	if t.Replace != nil {
-		return core.MarshalJSONWithExtraProperty(t.Replace, "type", "REPLACE")
+	if t.TestSuiteTestCaseReplaceBulkOperationRequest != nil {
+		return json.Marshal(t.TestSuiteTestCaseReplaceBulkOperationRequest)
 	}
-	if t.Upsert != nil {
-		return core.MarshalJSONWithExtraProperty(t.Upsert, "type", "UPSERT")
+	if t.TestSuiteTestCaseUpsertBulkOperationRequest != nil {
+		return json.Marshal(t.TestSuiteTestCaseUpsertBulkOperationRequest)
 	}
-	if t.Delete != nil {
-		return core.MarshalJSONWithExtraProperty(t.Delete, "type", "DELETE")
+	if t.TestSuiteTestCaseDeleteBulkOperationRequest != nil {
+		return json.Marshal(t.TestSuiteTestCaseDeleteBulkOperationRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteTestCaseBulkOperationRequestVisitor interface {
-	VisitCreate(*TestSuiteTestCaseCreateBulkOperationRequest) error
-	VisitReplace(*TestSuiteTestCaseReplaceBulkOperationRequest) error
-	VisitUpsert(*TestSuiteTestCaseUpsertBulkOperationRequest) error
-	VisitDelete(*TestSuiteTestCaseDeleteBulkOperationRequest) error
+	VisitTestSuiteTestCaseCreateBulkOperationRequest(*TestSuiteTestCaseCreateBulkOperationRequest) error
+	VisitTestSuiteTestCaseReplaceBulkOperationRequest(*TestSuiteTestCaseReplaceBulkOperationRequest) error
+	VisitTestSuiteTestCaseUpsertBulkOperationRequest(*TestSuiteTestCaseUpsertBulkOperationRequest) error
+	VisitTestSuiteTestCaseDeleteBulkOperationRequest(*TestSuiteTestCaseDeleteBulkOperationRequest) error
 }
 
 func (t *TestSuiteTestCaseBulkOperationRequest) Accept(visitor TestSuiteTestCaseBulkOperationRequestVisitor) error {
-	if t.Create != nil {
-		return visitor.VisitCreate(t.Create)
+	if t.TestSuiteTestCaseCreateBulkOperationRequest != nil {
+		return visitor.VisitTestSuiteTestCaseCreateBulkOperationRequest(t.TestSuiteTestCaseCreateBulkOperationRequest)
 	}
-	if t.Replace != nil {
-		return visitor.VisitReplace(t.Replace)
+	if t.TestSuiteTestCaseReplaceBulkOperationRequest != nil {
+		return visitor.VisitTestSuiteTestCaseReplaceBulkOperationRequest(t.TestSuiteTestCaseReplaceBulkOperationRequest)
 	}
-	if t.Upsert != nil {
-		return visitor.VisitUpsert(t.Upsert)
+	if t.TestSuiteTestCaseUpsertBulkOperationRequest != nil {
+		return visitor.VisitTestSuiteTestCaseUpsertBulkOperationRequest(t.TestSuiteTestCaseUpsertBulkOperationRequest)
 	}
-	if t.Delete != nil {
-		return visitor.VisitDelete(t.Delete)
+	if t.TestSuiteTestCaseDeleteBulkOperationRequest != nil {
+		return visitor.VisitTestSuiteTestCaseDeleteBulkOperationRequest(t.TestSuiteTestCaseDeleteBulkOperationRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteTestCaseBulkResult struct {
-	Type     string
-	Created  *TestSuiteTestCaseCreatedBulkResult
-	Replaced *TestSuiteTestCaseReplacedBulkResult
-	Deleted  *TestSuiteTestCaseDeletedBulkResult
-	Rejected *TestSuiteTestCaseRejectedBulkResult
+	TestSuiteTestCaseCreatedBulkResult  *TestSuiteTestCaseCreatedBulkResult
+	TestSuiteTestCaseReplacedBulkResult *TestSuiteTestCaseReplacedBulkResult
+	TestSuiteTestCaseDeletedBulkResult  *TestSuiteTestCaseDeletedBulkResult
+	TestSuiteTestCaseRejectedBulkResult *TestSuiteTestCaseRejectedBulkResult
 }
 
 func (t *TestSuiteTestCaseBulkResult) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueTestSuiteTestCaseCreatedBulkResult := new(TestSuiteTestCaseCreatedBulkResult)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseCreatedBulkResult); err == nil {
+		t.TestSuiteTestCaseCreatedBulkResult = valueTestSuiteTestCaseCreatedBulkResult
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueTestSuiteTestCaseReplacedBulkResult := new(TestSuiteTestCaseReplacedBulkResult)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseReplacedBulkResult); err == nil {
+		t.TestSuiteTestCaseReplacedBulkResult = valueTestSuiteTestCaseReplacedBulkResult
+		return nil
 	}
-	t.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "CREATED":
-		value := new(TestSuiteTestCaseCreatedBulkResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Created = value
-	case "REPLACED":
-		value := new(TestSuiteTestCaseReplacedBulkResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Replaced = value
-	case "DELETED":
-		value := new(TestSuiteTestCaseDeletedBulkResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Deleted = value
-	case "REJECTED":
-		value := new(TestSuiteTestCaseRejectedBulkResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		t.Rejected = value
+	valueTestSuiteTestCaseDeletedBulkResult := new(TestSuiteTestCaseDeletedBulkResult)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseDeletedBulkResult); err == nil {
+		t.TestSuiteTestCaseDeletedBulkResult = valueTestSuiteTestCaseDeletedBulkResult
+		return nil
 	}
-	return nil
+	valueTestSuiteTestCaseRejectedBulkResult := new(TestSuiteTestCaseRejectedBulkResult)
+	if err := json.Unmarshal(data, &valueTestSuiteTestCaseRejectedBulkResult); err == nil {
+		t.TestSuiteTestCaseRejectedBulkResult = valueTestSuiteTestCaseRejectedBulkResult
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, t)
 }
 
 func (t TestSuiteTestCaseBulkResult) MarshalJSON() ([]byte, error) {
-	if t.Created != nil {
-		return core.MarshalJSONWithExtraProperty(t.Created, "type", "CREATED")
+	if t.TestSuiteTestCaseCreatedBulkResult != nil {
+		return json.Marshal(t.TestSuiteTestCaseCreatedBulkResult)
 	}
-	if t.Replaced != nil {
-		return core.MarshalJSONWithExtraProperty(t.Replaced, "type", "REPLACED")
+	if t.TestSuiteTestCaseReplacedBulkResult != nil {
+		return json.Marshal(t.TestSuiteTestCaseReplacedBulkResult)
 	}
-	if t.Deleted != nil {
-		return core.MarshalJSONWithExtraProperty(t.Deleted, "type", "DELETED")
+	if t.TestSuiteTestCaseDeletedBulkResult != nil {
+		return json.Marshal(t.TestSuiteTestCaseDeletedBulkResult)
 	}
-	if t.Rejected != nil {
-		return core.MarshalJSONWithExtraProperty(t.Rejected, "type", "REJECTED")
+	if t.TestSuiteTestCaseRejectedBulkResult != nil {
+		return json.Marshal(t.TestSuiteTestCaseRejectedBulkResult)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", t)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 type TestSuiteTestCaseBulkResultVisitor interface {
-	VisitCreated(*TestSuiteTestCaseCreatedBulkResult) error
-	VisitReplaced(*TestSuiteTestCaseReplacedBulkResult) error
-	VisitDeleted(*TestSuiteTestCaseDeletedBulkResult) error
-	VisitRejected(*TestSuiteTestCaseRejectedBulkResult) error
+	VisitTestSuiteTestCaseCreatedBulkResult(*TestSuiteTestCaseCreatedBulkResult) error
+	VisitTestSuiteTestCaseReplacedBulkResult(*TestSuiteTestCaseReplacedBulkResult) error
+	VisitTestSuiteTestCaseDeletedBulkResult(*TestSuiteTestCaseDeletedBulkResult) error
+	VisitTestSuiteTestCaseRejectedBulkResult(*TestSuiteTestCaseRejectedBulkResult) error
 }
 
 func (t *TestSuiteTestCaseBulkResult) Accept(visitor TestSuiteTestCaseBulkResultVisitor) error {
-	if t.Created != nil {
-		return visitor.VisitCreated(t.Created)
+	if t.TestSuiteTestCaseCreatedBulkResult != nil {
+		return visitor.VisitTestSuiteTestCaseCreatedBulkResult(t.TestSuiteTestCaseCreatedBulkResult)
 	}
-	if t.Replaced != nil {
-		return visitor.VisitReplaced(t.Replaced)
+	if t.TestSuiteTestCaseReplacedBulkResult != nil {
+		return visitor.VisitTestSuiteTestCaseReplacedBulkResult(t.TestSuiteTestCaseReplacedBulkResult)
 	}
-	if t.Deleted != nil {
-		return visitor.VisitDeleted(t.Deleted)
+	if t.TestSuiteTestCaseDeletedBulkResult != nil {
+		return visitor.VisitTestSuiteTestCaseDeletedBulkResult(t.TestSuiteTestCaseDeletedBulkResult)
 	}
-	if t.Rejected != nil {
-		return visitor.VisitRejected(t.Rejected)
+	if t.TestSuiteTestCaseRejectedBulkResult != nil {
+		return visitor.VisitTestSuiteTestCaseRejectedBulkResult(t.TestSuiteTestCaseRejectedBulkResult)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", t)
+	return fmt.Errorf("type %T does not include a non-empty union type", t)
 }
 
 // A bulk operation that represents the creation of a Test Case.
 type TestSuiteTestCaseCreateBulkOperationRequest struct {
 	// An ID representing this specific operation. Can later be used to look up information about the operation's success in the response.
-	Id   string                          `json:"id" url:"id"`
-	Data *CreateTestSuiteTestCaseRequest `json:"data" url:"data"`
+	Id    string                          `json:"id" url:"id"`
+	Data  *CreateTestSuiteTestCaseRequest `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18545,15 +22670,28 @@ func (t *TestSuiteTestCaseCreateBulkOperationRequest) GetExtraProperties() map[s
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseCreateBulkOperationRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseCreateBulkOperationRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseCreateBulkOperationRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseCreateBulkOperationRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseCreateBulkOperationRequest(value)
+	*t = TestSuiteTestCaseCreateBulkOperationRequest(unmarshaler.embed)
+	if unmarshaler.Type != "CREATE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CREATE", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18561,6 +22699,18 @@ func (t *TestSuiteTestCaseCreateBulkOperationRequest) UnmarshalJSON(data []byte)
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseCreateBulkOperationRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseCreateBulkOperationRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CREATE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseCreateBulkOperationRequest) String() string {
@@ -18577,8 +22727,9 @@ func (t *TestSuiteTestCaseCreateBulkOperationRequest) String() string {
 
 // The result of a bulk operation that created a Test Case.
 type TestSuiteTestCaseCreatedBulkResult struct {
-	Id   string                                  `json:"id" url:"id"`
-	Data *TestSuiteTestCaseCreatedBulkResultData `json:"data" url:"data"`
+	Id    string                                  `json:"id" url:"id"`
+	Data  *TestSuiteTestCaseCreatedBulkResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18588,15 +22739,28 @@ func (t *TestSuiteTestCaseCreatedBulkResult) GetExtraProperties() map[string]int
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseCreatedBulkResult) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseCreatedBulkResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseCreatedBulkResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseCreatedBulkResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseCreatedBulkResult(value)
+	*t = TestSuiteTestCaseCreatedBulkResult(unmarshaler.embed)
+	if unmarshaler.Type != "CREATED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "CREATED", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18604,6 +22768,18 @@ func (t *TestSuiteTestCaseCreatedBulkResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseCreatedBulkResult) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseCreatedBulkResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "CREATED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseCreatedBulkResult) String() string {
@@ -18706,7 +22882,8 @@ type TestSuiteTestCaseDeleteBulkOperationRequest struct {
 	// An ID representing this specific operation. Can later be used to look up information about the operation's success in the response.
 	Id string `json:"id" url:"id"`
 	// Information about the Test Case to delete
-	Data *TestSuiteTestCaseDeleteBulkOperationDataRequest `json:"data" url:"data"`
+	Data  *TestSuiteTestCaseDeleteBulkOperationDataRequest `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18716,15 +22893,28 @@ func (t *TestSuiteTestCaseDeleteBulkOperationRequest) GetExtraProperties() map[s
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseDeleteBulkOperationRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseDeleteBulkOperationRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseDeleteBulkOperationRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseDeleteBulkOperationRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseDeleteBulkOperationRequest(value)
+	*t = TestSuiteTestCaseDeleteBulkOperationRequest(unmarshaler.embed)
+	if unmarshaler.Type != "DELETE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "DELETE", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18732,6 +22922,18 @@ func (t *TestSuiteTestCaseDeleteBulkOperationRequest) UnmarshalJSON(data []byte)
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseDeleteBulkOperationRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseDeleteBulkOperationRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "DELETE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseDeleteBulkOperationRequest) String() string {
@@ -18749,8 +22951,9 @@ func (t *TestSuiteTestCaseDeleteBulkOperationRequest) String() string {
 // The result of a bulk operation that deleted a Test Case.
 type TestSuiteTestCaseDeletedBulkResult struct {
 	// An ID that maps back to one of the initially supplied operations. Can be used to determine the result of a given operation.
-	Id   string                                  `json:"id" url:"id"`
-	Data *TestSuiteTestCaseDeletedBulkResultData `json:"data" url:"data"`
+	Id    string                                  `json:"id" url:"id"`
+	Data  *TestSuiteTestCaseDeletedBulkResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18760,15 +22963,28 @@ func (t *TestSuiteTestCaseDeletedBulkResult) GetExtraProperties() map[string]int
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseDeletedBulkResult) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseDeletedBulkResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseDeletedBulkResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseDeletedBulkResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseDeletedBulkResult(value)
+	*t = TestSuiteTestCaseDeletedBulkResult(unmarshaler.embed)
+	if unmarshaler.Type != "DELETED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "DELETED", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18776,6 +22992,18 @@ func (t *TestSuiteTestCaseDeletedBulkResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseDeletedBulkResult) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseDeletedBulkResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "DELETED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseDeletedBulkResult) String() string {
@@ -18837,7 +23065,8 @@ type TestSuiteTestCaseRejectedBulkResult struct {
 	// An ID that maps back to one of the initially supplied operations. Can be used to determine the result of a given operation.
 	Id *string `json:"id,omitempty" url:"id,omitempty"`
 	// Details about the error that occurred
-	Data map[string]interface{} `json:"data" url:"data"`
+	Data  map[string]interface{} `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18847,15 +23076,28 @@ func (t *TestSuiteTestCaseRejectedBulkResult) GetExtraProperties() map[string]in
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseRejectedBulkResult) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseRejectedBulkResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseRejectedBulkResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseRejectedBulkResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseRejectedBulkResult(value)
+	*t = TestSuiteTestCaseRejectedBulkResult(unmarshaler.embed)
+	if unmarshaler.Type != "REJECTED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "REJECTED", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18863,6 +23105,18 @@ func (t *TestSuiteTestCaseRejectedBulkResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseRejectedBulkResult) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseRejectedBulkResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "REJECTED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseRejectedBulkResult) String() string {
@@ -18880,8 +23134,9 @@ func (t *TestSuiteTestCaseRejectedBulkResult) String() string {
 // A bulk operation that represents the replacing of a Test Case.
 type TestSuiteTestCaseReplaceBulkOperationRequest struct {
 	// An ID representing this specific operation. Can later be used to look up information about the operation's success in the response.
-	Id   string                           `json:"id" url:"id"`
-	Data *ReplaceTestSuiteTestCaseRequest `json:"data" url:"data"`
+	Id    string                           `json:"id" url:"id"`
+	Data  *ReplaceTestSuiteTestCaseRequest `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18891,15 +23146,28 @@ func (t *TestSuiteTestCaseReplaceBulkOperationRequest) GetExtraProperties() map[
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseReplaceBulkOperationRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseReplaceBulkOperationRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseReplaceBulkOperationRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseReplaceBulkOperationRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseReplaceBulkOperationRequest(value)
+	*t = TestSuiteTestCaseReplaceBulkOperationRequest(unmarshaler.embed)
+	if unmarshaler.Type != "REPLACE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "REPLACE", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18907,6 +23175,18 @@ func (t *TestSuiteTestCaseReplaceBulkOperationRequest) UnmarshalJSON(data []byte
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseReplaceBulkOperationRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseReplaceBulkOperationRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "REPLACE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseReplaceBulkOperationRequest) String() string {
@@ -18924,8 +23204,9 @@ func (t *TestSuiteTestCaseReplaceBulkOperationRequest) String() string {
 // The result of a bulk operation that replaced a Test Case.
 type TestSuiteTestCaseReplacedBulkResult struct {
 	// An ID that maps back to one of the initially supplied operations. Can be used to determine the result of a given operation.
-	Id   string                                   `json:"id" url:"id"`
-	Data *TestSuiteTestCaseReplacedBulkResultData `json:"data" url:"data"`
+	Id    string                                   `json:"id" url:"id"`
+	Data  *TestSuiteTestCaseReplacedBulkResultData `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -18935,15 +23216,28 @@ func (t *TestSuiteTestCaseReplacedBulkResult) GetExtraProperties() map[string]in
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseReplacedBulkResult) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseReplacedBulkResult) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseReplacedBulkResult
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseReplacedBulkResult
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseReplacedBulkResult(value)
+	*t = TestSuiteTestCaseReplacedBulkResult(unmarshaler.embed)
+	if unmarshaler.Type != "REPLACED" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "REPLACED", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -18951,6 +23245,18 @@ func (t *TestSuiteTestCaseReplacedBulkResult) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseReplacedBulkResult) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseReplacedBulkResult
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "REPLACED",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseReplacedBulkResult) String() string {
@@ -19010,8 +23316,9 @@ func (t *TestSuiteTestCaseReplacedBulkResultData) String() string {
 // A bulk operation that represents the upserting of a Test Case.
 type TestSuiteTestCaseUpsertBulkOperationRequest struct {
 	// An ID representing this specific operation. Can later be used to look up information about the operation's success in the response.
-	Id   string                          `json:"id" url:"id"`
-	Data *UpsertTestSuiteTestCaseRequest `json:"data" url:"data"`
+	Id    string                          `json:"id" url:"id"`
+	Data  *UpsertTestSuiteTestCaseRequest `json:"data" url:"data"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19021,15 +23328,28 @@ func (t *TestSuiteTestCaseUpsertBulkOperationRequest) GetExtraProperties() map[s
 	return t.extraProperties
 }
 
+func (t *TestSuiteTestCaseUpsertBulkOperationRequest) Type() string {
+	return t.type_
+}
+
 func (t *TestSuiteTestCaseUpsertBulkOperationRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TestSuiteTestCaseUpsertBulkOperationRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TestSuiteTestCaseUpsertBulkOperationRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TestSuiteTestCaseUpsertBulkOperationRequest(value)
+	*t = TestSuiteTestCaseUpsertBulkOperationRequest(unmarshaler.embed)
+	if unmarshaler.Type != "UPSERT" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "UPSERT", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -19037,6 +23357,18 @@ func (t *TestSuiteTestCaseUpsertBulkOperationRequest) UnmarshalJSON(data []byte)
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TestSuiteTestCaseUpsertBulkOperationRequest) MarshalJSON() ([]byte, error) {
+	type embed TestSuiteTestCaseUpsertBulkOperationRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "UPSERT",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TestSuiteTestCaseUpsertBulkOperationRequest) String() string {
@@ -19053,7 +23385,8 @@ func (t *TestSuiteTestCaseUpsertBulkOperationRequest) String() string {
 
 // Tokenizer config for OpenAI's TikToken type tokenizers.
 type TikTokenTokenizerConfig struct {
-	Name string `json:"name" url:"name"`
+	Name  string `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19063,15 +23396,28 @@ func (t *TikTokenTokenizerConfig) GetExtraProperties() map[string]interface{} {
 	return t.extraProperties
 }
 
+func (t *TikTokenTokenizerConfig) Type() string {
+	return t.type_
+}
+
 func (t *TikTokenTokenizerConfig) UnmarshalJSON(data []byte) error {
-	type unmarshaler TikTokenTokenizerConfig
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TikTokenTokenizerConfig
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TikTokenTokenizerConfig(value)
+	*t = TikTokenTokenizerConfig(unmarshaler.embed)
+	if unmarshaler.Type != "TIKTOKEN" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "TIKTOKEN", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -19079,6 +23425,18 @@ func (t *TikTokenTokenizerConfig) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TikTokenTokenizerConfig) MarshalJSON() ([]byte, error) {
+	type embed TikTokenTokenizerConfig
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "TIKTOKEN",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TikTokenTokenizerConfig) String() string {
@@ -19095,7 +23453,8 @@ func (t *TikTokenTokenizerConfig) String() string {
 
 // Tokenizer config for OpenAI's TikToken type tokenizers.
 type TikTokenTokenizerConfigRequest struct {
-	Name string `json:"name" url:"name"`
+	Name  string `json:"name" url:"name"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19105,15 +23464,28 @@ func (t *TikTokenTokenizerConfigRequest) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TikTokenTokenizerConfigRequest) Type() string {
+	return t.type_
+}
+
 func (t *TikTokenTokenizerConfigRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TikTokenTokenizerConfigRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TikTokenTokenizerConfigRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TikTokenTokenizerConfigRequest(value)
+	*t = TikTokenTokenizerConfigRequest(unmarshaler.embed)
+	if unmarshaler.Type != "TIKTOKEN" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "TIKTOKEN", unmarshaler.Type)
+	}
+	t.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "type")
 	if err != nil {
 		return err
 	}
@@ -19121,6 +23493,18 @@ func (t *TikTokenTokenizerConfigRequest) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TikTokenTokenizerConfigRequest) MarshalJSON() ([]byte, error) {
+	type embed TikTokenTokenizerConfigRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*t),
+		Type:  "TIKTOKEN",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TikTokenTokenizerConfigRequest) String() string {
@@ -19224,6 +23608,7 @@ func (t *TokenOverlappingWindowChunkerConfigRequest) String() string {
 // Token overlapping window chunking
 type TokenOverlappingWindowChunking struct {
 	ChunkerConfig *TokenOverlappingWindowChunkerConfig `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19233,15 +23618,28 @@ func (t *TokenOverlappingWindowChunking) GetExtraProperties() map[string]interfa
 	return t.extraProperties
 }
 
+func (t *TokenOverlappingWindowChunking) ChunkerName() string {
+	return t.chunkerName
+}
+
 func (t *TokenOverlappingWindowChunking) UnmarshalJSON(data []byte) error {
-	type unmarshaler TokenOverlappingWindowChunking
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TokenOverlappingWindowChunking
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TokenOverlappingWindowChunking(value)
+	*t = TokenOverlappingWindowChunking(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "token-overlapping-window-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "token-overlapping-window-chunker", unmarshaler.ChunkerName)
+	}
+	t.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -19249,6 +23647,18 @@ func (t *TokenOverlappingWindowChunking) UnmarshalJSON(data []byte) error {
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TokenOverlappingWindowChunking) MarshalJSON() ([]byte, error) {
+	type embed TokenOverlappingWindowChunking
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*t),
+		ChunkerName: "token-overlapping-window-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TokenOverlappingWindowChunking) String() string {
@@ -19266,6 +23676,7 @@ func (t *TokenOverlappingWindowChunking) String() string {
 // Token overlapping window chunking
 type TokenOverlappingWindowChunkingRequest struct {
 	ChunkerConfig *TokenOverlappingWindowChunkerConfigRequest `json:"chunker_config,omitempty" url:"chunker_config,omitempty"`
+	chunkerName   string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19275,15 +23686,28 @@ func (t *TokenOverlappingWindowChunkingRequest) GetExtraProperties() map[string]
 	return t.extraProperties
 }
 
+func (t *TokenOverlappingWindowChunkingRequest) ChunkerName() string {
+	return t.chunkerName
+}
+
 func (t *TokenOverlappingWindowChunkingRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler TokenOverlappingWindowChunkingRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed TokenOverlappingWindowChunkingRequest
+	var unmarshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed: embed(*t),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*t = TokenOverlappingWindowChunkingRequest(value)
+	*t = TokenOverlappingWindowChunkingRequest(unmarshaler.embed)
+	if unmarshaler.ChunkerName != "token-overlapping-window-chunker" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", t, "token-overlapping-window-chunker", unmarshaler.ChunkerName)
+	}
+	t.chunkerName = unmarshaler.ChunkerName
 
-	extraProperties, err := core.ExtractExtraProperties(data, *t)
+	extraProperties, err := core.ExtractExtraProperties(data, *t, "chunker_name")
 	if err != nil {
 		return err
 	}
@@ -19291,6 +23715,18 @@ func (t *TokenOverlappingWindowChunkingRequest) UnmarshalJSON(data []byte) error
 
 	t._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (t *TokenOverlappingWindowChunkingRequest) MarshalJSON() ([]byte, error) {
+	type embed TokenOverlappingWindowChunkingRequest
+	var marshaler = struct {
+		embed
+		ChunkerName string `json:"chunker_name"`
+	}{
+		embed:       embed(*t),
+		ChunkerName: "token-overlapping-window-chunker",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (t *TokenOverlappingWindowChunkingRequest) String() string {
@@ -19871,6 +24307,7 @@ type WorkflowExecutionActualChatHistoryRequest struct {
 	Timestamp *float64 `json:"timestamp,omitempty" url:"timestamp,omitempty"`
 	// Optionally provide the value that the output ideally should have been.
 	DesiredOutputValue []*ChatMessageRequest `json:"desired_output_value,omitempty" url:"desired_output_value,omitempty"`
+	outputType         string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19880,15 +24317,28 @@ func (w *WorkflowExecutionActualChatHistoryRequest) GetExtraProperties() map[str
 	return w.extraProperties
 }
 
+func (w *WorkflowExecutionActualChatHistoryRequest) OutputType() string {
+	return w.outputType
+}
+
 func (w *WorkflowExecutionActualChatHistoryRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowExecutionActualChatHistoryRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowExecutionActualChatHistoryRequest
+	var unmarshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowExecutionActualChatHistoryRequest(value)
+	*w = WorkflowExecutionActualChatHistoryRequest(unmarshaler.embed)
+	if unmarshaler.OutputType != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "CHAT_HISTORY", unmarshaler.OutputType)
+	}
+	w.outputType = unmarshaler.OutputType
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "output_type")
 	if err != nil {
 		return err
 	}
@@ -19896,6 +24346,18 @@ func (w *WorkflowExecutionActualChatHistoryRequest) UnmarshalJSON(data []byte) e
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowExecutionActualChatHistoryRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowExecutionActualChatHistoryRequest
+	var marshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed:      embed(*w),
+		OutputType: "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowExecutionActualChatHistoryRequest) String() string {
@@ -19923,6 +24385,7 @@ type WorkflowExecutionActualJsonRequest struct {
 	Timestamp *float64 `json:"timestamp,omitempty" url:"timestamp,omitempty"`
 	// Optionally provide the value that the output ideally should have been.
 	DesiredOutputValue map[string]interface{} `json:"desired_output_value,omitempty" url:"desired_output_value,omitempty"`
+	outputType         string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19932,15 +24395,28 @@ func (w *WorkflowExecutionActualJsonRequest) GetExtraProperties() map[string]int
 	return w.extraProperties
 }
 
+func (w *WorkflowExecutionActualJsonRequest) OutputType() string {
+	return w.outputType
+}
+
 func (w *WorkflowExecutionActualJsonRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowExecutionActualJsonRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowExecutionActualJsonRequest
+	var unmarshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowExecutionActualJsonRequest(value)
+	*w = WorkflowExecutionActualJsonRequest(unmarshaler.embed)
+	if unmarshaler.OutputType != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "JSON", unmarshaler.OutputType)
+	}
+	w.outputType = unmarshaler.OutputType
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "output_type")
 	if err != nil {
 		return err
 	}
@@ -19948,6 +24424,18 @@ func (w *WorkflowExecutionActualJsonRequest) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowExecutionActualJsonRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowExecutionActualJsonRequest
+	var marshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed:      embed(*w),
+		OutputType: "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowExecutionActualJsonRequest) String() string {
@@ -19975,6 +24463,7 @@ type WorkflowExecutionActualStringRequest struct {
 	Timestamp *float64 `json:"timestamp,omitempty" url:"timestamp,omitempty"`
 	// Optionally provide the value that the output ideally should have been.
 	DesiredOutputValue *string `json:"desired_output_value,omitempty" url:"desired_output_value,omitempty"`
+	outputType         string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -19984,15 +24473,28 @@ func (w *WorkflowExecutionActualStringRequest) GetExtraProperties() map[string]i
 	return w.extraProperties
 }
 
+func (w *WorkflowExecutionActualStringRequest) OutputType() string {
+	return w.outputType
+}
+
 func (w *WorkflowExecutionActualStringRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowExecutionActualStringRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowExecutionActualStringRequest
+	var unmarshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowExecutionActualStringRequest(value)
+	*w = WorkflowExecutionActualStringRequest(unmarshaler.embed)
+	if unmarshaler.OutputType != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "STRING", unmarshaler.OutputType)
+	}
+	w.outputType = unmarshaler.OutputType
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "output_type")
 	if err != nil {
 		return err
 	}
@@ -20000,6 +24502,18 @@ func (w *WorkflowExecutionActualStringRequest) UnmarshalJSON(data []byte) error 
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowExecutionActualStringRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowExecutionActualStringRequest
+	var marshaler = struct {
+		embed
+		OutputType string `json:"output_type"`
+	}{
+		embed:      embed(*w),
+		OutputType: "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowExecutionActualStringRequest) String() string {
@@ -20092,6 +24606,7 @@ type WorkflowExecutionNodeResultEvent struct {
 	RunId       *string                  `json:"run_id,omitempty" url:"run_id,omitempty"`
 	ExternalId  *string                  `json:"external_id,omitempty" url:"external_id,omitempty"`
 	Data        *WorkflowNodeResultEvent `json:"data" url:"data"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20101,15 +24616,28 @@ func (w *WorkflowExecutionNodeResultEvent) GetExtraProperties() map[string]inter
 	return w.extraProperties
 }
 
+func (w *WorkflowExecutionNodeResultEvent) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowExecutionNodeResultEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowExecutionNodeResultEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowExecutionNodeResultEvent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowExecutionNodeResultEvent(value)
+	*w = WorkflowExecutionNodeResultEvent(unmarshaler.embed)
+	if unmarshaler.Type != "NODE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "NODE", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20117,6 +24645,18 @@ func (w *WorkflowExecutionNodeResultEvent) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowExecutionNodeResultEvent) MarshalJSON() ([]byte, error) {
+	type embed WorkflowExecutionNodeResultEvent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "NODE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowExecutionNodeResultEvent) String() string {
@@ -20137,6 +24677,7 @@ type WorkflowExecutionWorkflowResultEvent struct {
 	RunId       *string              `json:"run_id,omitempty" url:"run_id,omitempty"`
 	ExternalId  *string              `json:"external_id,omitempty" url:"external_id,omitempty"`
 	Data        *WorkflowResultEvent `json:"data" url:"data"`
+	type_       string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20146,15 +24687,28 @@ func (w *WorkflowExecutionWorkflowResultEvent) GetExtraProperties() map[string]i
 	return w.extraProperties
 }
 
+func (w *WorkflowExecutionWorkflowResultEvent) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowExecutionWorkflowResultEvent) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowExecutionWorkflowResultEvent
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowExecutionWorkflowResultEvent
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowExecutionWorkflowResultEvent(value)
+	*w = WorkflowExecutionWorkflowResultEvent(unmarshaler.embed)
+	if unmarshaler.Type != "WORKFLOW" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "WORKFLOW", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20162,6 +24716,18 @@ func (w *WorkflowExecutionWorkflowResultEvent) UnmarshalJSON(data []byte) error 
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowExecutionWorkflowResultEvent) MarshalJSON() ([]byte, error) {
+	type embed WorkflowExecutionWorkflowResultEvent
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "WORKFLOW",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowExecutionWorkflowResultEvent) String() string {
@@ -20219,269 +24785,234 @@ func (w *WorkflowExpandMetaRequest) String() string {
 }
 
 type WorkflowNodeResultData struct {
-	Type          string
-	Prompt        *PromptNodeResult
-	Search        *SearchNodeResult
-	Templating    *TemplatingNodeResult
-	CodeExecution *CodeExecutionNodeResult
-	Conditional   *ConditionalNodeResult
-	Api           *ApiNodeResult
-	Terminal      *TerminalNodeResult
-	Merge         *MergeNodeResult
-	Subworkflow   *SubworkflowNodeResult
-	Metric        *MetricNodeResult
-	Map           *MapNodeResult
+	PromptNodeResult        *PromptNodeResult
+	SearchNodeResult        *SearchNodeResult
+	TemplatingNodeResult    *TemplatingNodeResult
+	CodeExecutionNodeResult *CodeExecutionNodeResult
+	ConditionalNodeResult   *ConditionalNodeResult
+	ApiNodeResult           *ApiNodeResult
+	TerminalNodeResult      *TerminalNodeResult
+	MergeNodeResult         *MergeNodeResult
+	SubworkflowNodeResult   *SubworkflowNodeResult
+	MetricNodeResult        *MetricNodeResult
+	MapNodeResult           *MapNodeResult
 }
 
 func (w *WorkflowNodeResultData) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valuePromptNodeResult := new(PromptNodeResult)
+	if err := json.Unmarshal(data, &valuePromptNodeResult); err == nil {
+		w.PromptNodeResult = valuePromptNodeResult
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueSearchNodeResult := new(SearchNodeResult)
+	if err := json.Unmarshal(data, &valueSearchNodeResult); err == nil {
+		w.SearchNodeResult = valueSearchNodeResult
+		return nil
 	}
-	w.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "PROMPT":
-		value := new(PromptNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Prompt = value
-	case "SEARCH":
-		value := new(SearchNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Search = value
-	case "TEMPLATING":
-		value := new(TemplatingNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Templating = value
-	case "CODE_EXECUTION":
-		value := new(CodeExecutionNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.CodeExecution = value
-	case "CONDITIONAL":
-		value := new(ConditionalNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Conditional = value
-	case "API":
-		value := new(ApiNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Api = value
-	case "TERMINAL":
-		value := new(TerminalNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Terminal = value
-	case "MERGE":
-		value := new(MergeNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Merge = value
-	case "SUBWORKFLOW":
-		value := new(SubworkflowNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Subworkflow = value
-	case "METRIC":
-		value := new(MetricNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Metric = value
-	case "MAP":
-		value := new(MapNodeResult)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Map = value
+	valueTemplatingNodeResult := new(TemplatingNodeResult)
+	if err := json.Unmarshal(data, &valueTemplatingNodeResult); err == nil {
+		w.TemplatingNodeResult = valueTemplatingNodeResult
+		return nil
 	}
-	return nil
+	valueCodeExecutionNodeResult := new(CodeExecutionNodeResult)
+	if err := json.Unmarshal(data, &valueCodeExecutionNodeResult); err == nil {
+		w.CodeExecutionNodeResult = valueCodeExecutionNodeResult
+		return nil
+	}
+	valueConditionalNodeResult := new(ConditionalNodeResult)
+	if err := json.Unmarshal(data, &valueConditionalNodeResult); err == nil {
+		w.ConditionalNodeResult = valueConditionalNodeResult
+		return nil
+	}
+	valueApiNodeResult := new(ApiNodeResult)
+	if err := json.Unmarshal(data, &valueApiNodeResult); err == nil {
+		w.ApiNodeResult = valueApiNodeResult
+		return nil
+	}
+	valueTerminalNodeResult := new(TerminalNodeResult)
+	if err := json.Unmarshal(data, &valueTerminalNodeResult); err == nil {
+		w.TerminalNodeResult = valueTerminalNodeResult
+		return nil
+	}
+	valueMergeNodeResult := new(MergeNodeResult)
+	if err := json.Unmarshal(data, &valueMergeNodeResult); err == nil {
+		w.MergeNodeResult = valueMergeNodeResult
+		return nil
+	}
+	valueSubworkflowNodeResult := new(SubworkflowNodeResult)
+	if err := json.Unmarshal(data, &valueSubworkflowNodeResult); err == nil {
+		w.SubworkflowNodeResult = valueSubworkflowNodeResult
+		return nil
+	}
+	valueMetricNodeResult := new(MetricNodeResult)
+	if err := json.Unmarshal(data, &valueMetricNodeResult); err == nil {
+		w.MetricNodeResult = valueMetricNodeResult
+		return nil
+	}
+	valueMapNodeResult := new(MapNodeResult)
+	if err := json.Unmarshal(data, &valueMapNodeResult); err == nil {
+		w.MapNodeResult = valueMapNodeResult
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowNodeResultData) MarshalJSON() ([]byte, error) {
-	if w.Prompt != nil {
-		return core.MarshalJSONWithExtraProperty(w.Prompt, "type", "PROMPT")
+	if w.PromptNodeResult != nil {
+		return json.Marshal(w.PromptNodeResult)
 	}
-	if w.Search != nil {
-		return core.MarshalJSONWithExtraProperty(w.Search, "type", "SEARCH")
+	if w.SearchNodeResult != nil {
+		return json.Marshal(w.SearchNodeResult)
 	}
-	if w.Templating != nil {
-		return core.MarshalJSONWithExtraProperty(w.Templating, "type", "TEMPLATING")
+	if w.TemplatingNodeResult != nil {
+		return json.Marshal(w.TemplatingNodeResult)
 	}
-	if w.CodeExecution != nil {
-		return core.MarshalJSONWithExtraProperty(w.CodeExecution, "type", "CODE_EXECUTION")
+	if w.CodeExecutionNodeResult != nil {
+		return json.Marshal(w.CodeExecutionNodeResult)
 	}
-	if w.Conditional != nil {
-		return core.MarshalJSONWithExtraProperty(w.Conditional, "type", "CONDITIONAL")
+	if w.ConditionalNodeResult != nil {
+		return json.Marshal(w.ConditionalNodeResult)
 	}
-	if w.Api != nil {
-		return core.MarshalJSONWithExtraProperty(w.Api, "type", "API")
+	if w.ApiNodeResult != nil {
+		return json.Marshal(w.ApiNodeResult)
 	}
-	if w.Terminal != nil {
-		return core.MarshalJSONWithExtraProperty(w.Terminal, "type", "TERMINAL")
+	if w.TerminalNodeResult != nil {
+		return json.Marshal(w.TerminalNodeResult)
 	}
-	if w.Merge != nil {
-		return core.MarshalJSONWithExtraProperty(w.Merge, "type", "MERGE")
+	if w.MergeNodeResult != nil {
+		return json.Marshal(w.MergeNodeResult)
 	}
-	if w.Subworkflow != nil {
-		return core.MarshalJSONWithExtraProperty(w.Subworkflow, "type", "SUBWORKFLOW")
+	if w.SubworkflowNodeResult != nil {
+		return json.Marshal(w.SubworkflowNodeResult)
 	}
-	if w.Metric != nil {
-		return core.MarshalJSONWithExtraProperty(w.Metric, "type", "METRIC")
+	if w.MetricNodeResult != nil {
+		return json.Marshal(w.MetricNodeResult)
 	}
-	if w.Map != nil {
-		return core.MarshalJSONWithExtraProperty(w.Map, "type", "MAP")
+	if w.MapNodeResult != nil {
+		return json.Marshal(w.MapNodeResult)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowNodeResultDataVisitor interface {
-	VisitPrompt(*PromptNodeResult) error
-	VisitSearch(*SearchNodeResult) error
-	VisitTemplating(*TemplatingNodeResult) error
-	VisitCodeExecution(*CodeExecutionNodeResult) error
-	VisitConditional(*ConditionalNodeResult) error
-	VisitApi(*ApiNodeResult) error
-	VisitTerminal(*TerminalNodeResult) error
-	VisitMerge(*MergeNodeResult) error
-	VisitSubworkflow(*SubworkflowNodeResult) error
-	VisitMetric(*MetricNodeResult) error
-	VisitMap(*MapNodeResult) error
+	VisitPromptNodeResult(*PromptNodeResult) error
+	VisitSearchNodeResult(*SearchNodeResult) error
+	VisitTemplatingNodeResult(*TemplatingNodeResult) error
+	VisitCodeExecutionNodeResult(*CodeExecutionNodeResult) error
+	VisitConditionalNodeResult(*ConditionalNodeResult) error
+	VisitApiNodeResult(*ApiNodeResult) error
+	VisitTerminalNodeResult(*TerminalNodeResult) error
+	VisitMergeNodeResult(*MergeNodeResult) error
+	VisitSubworkflowNodeResult(*SubworkflowNodeResult) error
+	VisitMetricNodeResult(*MetricNodeResult) error
+	VisitMapNodeResult(*MapNodeResult) error
 }
 
 func (w *WorkflowNodeResultData) Accept(visitor WorkflowNodeResultDataVisitor) error {
-	if w.Prompt != nil {
-		return visitor.VisitPrompt(w.Prompt)
+	if w.PromptNodeResult != nil {
+		return visitor.VisitPromptNodeResult(w.PromptNodeResult)
 	}
-	if w.Search != nil {
-		return visitor.VisitSearch(w.Search)
+	if w.SearchNodeResult != nil {
+		return visitor.VisitSearchNodeResult(w.SearchNodeResult)
 	}
-	if w.Templating != nil {
-		return visitor.VisitTemplating(w.Templating)
+	if w.TemplatingNodeResult != nil {
+		return visitor.VisitTemplatingNodeResult(w.TemplatingNodeResult)
 	}
-	if w.CodeExecution != nil {
-		return visitor.VisitCodeExecution(w.CodeExecution)
+	if w.CodeExecutionNodeResult != nil {
+		return visitor.VisitCodeExecutionNodeResult(w.CodeExecutionNodeResult)
 	}
-	if w.Conditional != nil {
-		return visitor.VisitConditional(w.Conditional)
+	if w.ConditionalNodeResult != nil {
+		return visitor.VisitConditionalNodeResult(w.ConditionalNodeResult)
 	}
-	if w.Api != nil {
-		return visitor.VisitApi(w.Api)
+	if w.ApiNodeResult != nil {
+		return visitor.VisitApiNodeResult(w.ApiNodeResult)
 	}
-	if w.Terminal != nil {
-		return visitor.VisitTerminal(w.Terminal)
+	if w.TerminalNodeResult != nil {
+		return visitor.VisitTerminalNodeResult(w.TerminalNodeResult)
 	}
-	if w.Merge != nil {
-		return visitor.VisitMerge(w.Merge)
+	if w.MergeNodeResult != nil {
+		return visitor.VisitMergeNodeResult(w.MergeNodeResult)
 	}
-	if w.Subworkflow != nil {
-		return visitor.VisitSubworkflow(w.Subworkflow)
+	if w.SubworkflowNodeResult != nil {
+		return visitor.VisitSubworkflowNodeResult(w.SubworkflowNodeResult)
 	}
-	if w.Metric != nil {
-		return visitor.VisitMetric(w.Metric)
+	if w.MetricNodeResult != nil {
+		return visitor.VisitMetricNodeResult(w.MetricNodeResult)
 	}
-	if w.Map != nil {
-		return visitor.VisitMap(w.Map)
+	if w.MapNodeResult != nil {
+		return visitor.VisitMapNodeResult(w.MapNodeResult)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowNodeResultEvent struct {
-	State     string
-	Initiated *InitiatedWorkflowNodeResultEvent
-	Streaming *StreamingWorkflowNodeResultEvent
-	Fulfilled *FulfilledWorkflowNodeResultEvent
-	Rejected  *RejectedWorkflowNodeResultEvent
+	InitiatedWorkflowNodeResultEvent *InitiatedWorkflowNodeResultEvent
+	StreamingWorkflowNodeResultEvent *StreamingWorkflowNodeResultEvent
+	FulfilledWorkflowNodeResultEvent *FulfilledWorkflowNodeResultEvent
+	RejectedWorkflowNodeResultEvent  *RejectedWorkflowNodeResultEvent
 }
 
 func (w *WorkflowNodeResultEvent) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		State string `json:"state"`
+	valueInitiatedWorkflowNodeResultEvent := new(InitiatedWorkflowNodeResultEvent)
+	if err := json.Unmarshal(data, &valueInitiatedWorkflowNodeResultEvent); err == nil {
+		w.InitiatedWorkflowNodeResultEvent = valueInitiatedWorkflowNodeResultEvent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueStreamingWorkflowNodeResultEvent := new(StreamingWorkflowNodeResultEvent)
+	if err := json.Unmarshal(data, &valueStreamingWorkflowNodeResultEvent); err == nil {
+		w.StreamingWorkflowNodeResultEvent = valueStreamingWorkflowNodeResultEvent
+		return nil
 	}
-	w.State = unmarshaler.State
-	switch unmarshaler.State {
-	case "INITIATED":
-		value := new(InitiatedWorkflowNodeResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Initiated = value
-	case "STREAMING":
-		value := new(StreamingWorkflowNodeResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Streaming = value
-	case "FULFILLED":
-		value := new(FulfilledWorkflowNodeResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Fulfilled = value
-	case "REJECTED":
-		value := new(RejectedWorkflowNodeResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Rejected = value
+	valueFulfilledWorkflowNodeResultEvent := new(FulfilledWorkflowNodeResultEvent)
+	if err := json.Unmarshal(data, &valueFulfilledWorkflowNodeResultEvent); err == nil {
+		w.FulfilledWorkflowNodeResultEvent = valueFulfilledWorkflowNodeResultEvent
+		return nil
 	}
-	return nil
+	valueRejectedWorkflowNodeResultEvent := new(RejectedWorkflowNodeResultEvent)
+	if err := json.Unmarshal(data, &valueRejectedWorkflowNodeResultEvent); err == nil {
+		w.RejectedWorkflowNodeResultEvent = valueRejectedWorkflowNodeResultEvent
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowNodeResultEvent) MarshalJSON() ([]byte, error) {
-	if w.Initiated != nil {
-		return core.MarshalJSONWithExtraProperty(w.Initiated, "state", "INITIATED")
+	if w.InitiatedWorkflowNodeResultEvent != nil {
+		return json.Marshal(w.InitiatedWorkflowNodeResultEvent)
 	}
-	if w.Streaming != nil {
-		return core.MarshalJSONWithExtraProperty(w.Streaming, "state", "STREAMING")
+	if w.StreamingWorkflowNodeResultEvent != nil {
+		return json.Marshal(w.StreamingWorkflowNodeResultEvent)
 	}
-	if w.Fulfilled != nil {
-		return core.MarshalJSONWithExtraProperty(w.Fulfilled, "state", "FULFILLED")
+	if w.FulfilledWorkflowNodeResultEvent != nil {
+		return json.Marshal(w.FulfilledWorkflowNodeResultEvent)
 	}
-	if w.Rejected != nil {
-		return core.MarshalJSONWithExtraProperty(w.Rejected, "state", "REJECTED")
+	if w.RejectedWorkflowNodeResultEvent != nil {
+		return json.Marshal(w.RejectedWorkflowNodeResultEvent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowNodeResultEventVisitor interface {
-	VisitInitiated(*InitiatedWorkflowNodeResultEvent) error
-	VisitStreaming(*StreamingWorkflowNodeResultEvent) error
-	VisitFulfilled(*FulfilledWorkflowNodeResultEvent) error
-	VisitRejected(*RejectedWorkflowNodeResultEvent) error
+	VisitInitiatedWorkflowNodeResultEvent(*InitiatedWorkflowNodeResultEvent) error
+	VisitStreamingWorkflowNodeResultEvent(*StreamingWorkflowNodeResultEvent) error
+	VisitFulfilledWorkflowNodeResultEvent(*FulfilledWorkflowNodeResultEvent) error
+	VisitRejectedWorkflowNodeResultEvent(*RejectedWorkflowNodeResultEvent) error
 }
 
 func (w *WorkflowNodeResultEvent) Accept(visitor WorkflowNodeResultEventVisitor) error {
-	if w.Initiated != nil {
-		return visitor.VisitInitiated(w.Initiated)
+	if w.InitiatedWorkflowNodeResultEvent != nil {
+		return visitor.VisitInitiatedWorkflowNodeResultEvent(w.InitiatedWorkflowNodeResultEvent)
 	}
-	if w.Streaming != nil {
-		return visitor.VisitStreaming(w.Streaming)
+	if w.StreamingWorkflowNodeResultEvent != nil {
+		return visitor.VisitStreamingWorkflowNodeResultEvent(w.StreamingWorkflowNodeResultEvent)
 	}
-	if w.Fulfilled != nil {
-		return visitor.VisitFulfilled(w.Fulfilled)
+	if w.FulfilledWorkflowNodeResultEvent != nil {
+		return visitor.VisitFulfilledWorkflowNodeResultEvent(w.FulfilledWorkflowNodeResultEvent)
 	}
-	if w.Rejected != nil {
-		return visitor.VisitRejected(w.Rejected)
+	if w.RejectedWorkflowNodeResultEvent != nil {
+		return visitor.VisitRejectedWorkflowNodeResultEvent(w.RejectedWorkflowNodeResultEvent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 // - `INITIATED` - INITIATED
@@ -20517,157 +25048,138 @@ func (w WorkflowNodeResultEventState) Ptr() *WorkflowNodeResultEventState {
 }
 
 type WorkflowOutput struct {
-	Type          string
-	String        *WorkflowOutputString
-	Number        *WorkflowOutputNumber
-	Json          *WorkflowOutputJson
-	ChatHistory   *WorkflowOutputChatHistory
-	SearchResults *WorkflowOutputSearchResults
-	Array         *WorkflowOutputArray
-	Error         *WorkflowOutputError
-	FunctionCall  *WorkflowOutputFunctionCall
-	Image         *WorkflowOutputImage
+	WorkflowOutputString        *WorkflowOutputString
+	WorkflowOutputNumber        *WorkflowOutputNumber
+	WorkflowOutputJson          *WorkflowOutputJson
+	WorkflowOutputChatHistory   *WorkflowOutputChatHistory
+	WorkflowOutputSearchResults *WorkflowOutputSearchResults
+	WorkflowOutputArray         *WorkflowOutputArray
+	WorkflowOutputError         *WorkflowOutputError
+	WorkflowOutputFunctionCall  *WorkflowOutputFunctionCall
+	WorkflowOutputImage         *WorkflowOutputImage
 }
 
 func (w *WorkflowOutput) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueWorkflowOutputString := new(WorkflowOutputString)
+	if err := json.Unmarshal(data, &valueWorkflowOutputString); err == nil {
+		w.WorkflowOutputString = valueWorkflowOutputString
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueWorkflowOutputNumber := new(WorkflowOutputNumber)
+	if err := json.Unmarshal(data, &valueWorkflowOutputNumber); err == nil {
+		w.WorkflowOutputNumber = valueWorkflowOutputNumber
+		return nil
 	}
-	w.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(WorkflowOutputString)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.String = value
-	case "NUMBER":
-		value := new(WorkflowOutputNumber)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Number = value
-	case "JSON":
-		value := new(WorkflowOutputJson)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Json = value
-	case "CHAT_HISTORY":
-		value := new(WorkflowOutputChatHistory)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(WorkflowOutputSearchResults)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.SearchResults = value
-	case "ARRAY":
-		value := new(WorkflowOutputArray)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Array = value
-	case "ERROR":
-		value := new(WorkflowOutputError)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Error = value
-	case "FUNCTION_CALL":
-		value := new(WorkflowOutputFunctionCall)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.FunctionCall = value
-	case "IMAGE":
-		value := new(WorkflowOutputImage)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Image = value
+	valueWorkflowOutputJson := new(WorkflowOutputJson)
+	if err := json.Unmarshal(data, &valueWorkflowOutputJson); err == nil {
+		w.WorkflowOutputJson = valueWorkflowOutputJson
+		return nil
 	}
-	return nil
+	valueWorkflowOutputChatHistory := new(WorkflowOutputChatHistory)
+	if err := json.Unmarshal(data, &valueWorkflowOutputChatHistory); err == nil {
+		w.WorkflowOutputChatHistory = valueWorkflowOutputChatHistory
+		return nil
+	}
+	valueWorkflowOutputSearchResults := new(WorkflowOutputSearchResults)
+	if err := json.Unmarshal(data, &valueWorkflowOutputSearchResults); err == nil {
+		w.WorkflowOutputSearchResults = valueWorkflowOutputSearchResults
+		return nil
+	}
+	valueWorkflowOutputArray := new(WorkflowOutputArray)
+	if err := json.Unmarshal(data, &valueWorkflowOutputArray); err == nil {
+		w.WorkflowOutputArray = valueWorkflowOutputArray
+		return nil
+	}
+	valueWorkflowOutputError := new(WorkflowOutputError)
+	if err := json.Unmarshal(data, &valueWorkflowOutputError); err == nil {
+		w.WorkflowOutputError = valueWorkflowOutputError
+		return nil
+	}
+	valueWorkflowOutputFunctionCall := new(WorkflowOutputFunctionCall)
+	if err := json.Unmarshal(data, &valueWorkflowOutputFunctionCall); err == nil {
+		w.WorkflowOutputFunctionCall = valueWorkflowOutputFunctionCall
+		return nil
+	}
+	valueWorkflowOutputImage := new(WorkflowOutputImage)
+	if err := json.Unmarshal(data, &valueWorkflowOutputImage); err == nil {
+		w.WorkflowOutputImage = valueWorkflowOutputImage
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowOutput) MarshalJSON() ([]byte, error) {
-	if w.String != nil {
-		return core.MarshalJSONWithExtraProperty(w.String, "type", "STRING")
+	if w.WorkflowOutputString != nil {
+		return json.Marshal(w.WorkflowOutputString)
 	}
-	if w.Number != nil {
-		return core.MarshalJSONWithExtraProperty(w.Number, "type", "NUMBER")
+	if w.WorkflowOutputNumber != nil {
+		return json.Marshal(w.WorkflowOutputNumber)
 	}
-	if w.Json != nil {
-		return core.MarshalJSONWithExtraProperty(w.Json, "type", "JSON")
+	if w.WorkflowOutputJson != nil {
+		return json.Marshal(w.WorkflowOutputJson)
 	}
-	if w.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(w.ChatHistory, "type", "CHAT_HISTORY")
+	if w.WorkflowOutputChatHistory != nil {
+		return json.Marshal(w.WorkflowOutputChatHistory)
 	}
-	if w.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(w.SearchResults, "type", "SEARCH_RESULTS")
+	if w.WorkflowOutputSearchResults != nil {
+		return json.Marshal(w.WorkflowOutputSearchResults)
 	}
-	if w.Array != nil {
-		return core.MarshalJSONWithExtraProperty(w.Array, "type", "ARRAY")
+	if w.WorkflowOutputArray != nil {
+		return json.Marshal(w.WorkflowOutputArray)
 	}
-	if w.Error != nil {
-		return core.MarshalJSONWithExtraProperty(w.Error, "type", "ERROR")
+	if w.WorkflowOutputError != nil {
+		return json.Marshal(w.WorkflowOutputError)
 	}
-	if w.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(w.FunctionCall, "type", "FUNCTION_CALL")
+	if w.WorkflowOutputFunctionCall != nil {
+		return json.Marshal(w.WorkflowOutputFunctionCall)
 	}
-	if w.Image != nil {
-		return core.MarshalJSONWithExtraProperty(w.Image, "type", "IMAGE")
+	if w.WorkflowOutputImage != nil {
+		return json.Marshal(w.WorkflowOutputImage)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowOutputVisitor interface {
-	VisitString(*WorkflowOutputString) error
-	VisitNumber(*WorkflowOutputNumber) error
-	VisitJson(*WorkflowOutputJson) error
-	VisitChatHistory(*WorkflowOutputChatHistory) error
-	VisitSearchResults(*WorkflowOutputSearchResults) error
-	VisitArray(*WorkflowOutputArray) error
-	VisitError(*WorkflowOutputError) error
-	VisitFunctionCall(*WorkflowOutputFunctionCall) error
-	VisitImage(*WorkflowOutputImage) error
+	VisitWorkflowOutputString(*WorkflowOutputString) error
+	VisitWorkflowOutputNumber(*WorkflowOutputNumber) error
+	VisitWorkflowOutputJson(*WorkflowOutputJson) error
+	VisitWorkflowOutputChatHistory(*WorkflowOutputChatHistory) error
+	VisitWorkflowOutputSearchResults(*WorkflowOutputSearchResults) error
+	VisitWorkflowOutputArray(*WorkflowOutputArray) error
+	VisitWorkflowOutputError(*WorkflowOutputError) error
+	VisitWorkflowOutputFunctionCall(*WorkflowOutputFunctionCall) error
+	VisitWorkflowOutputImage(*WorkflowOutputImage) error
 }
 
 func (w *WorkflowOutput) Accept(visitor WorkflowOutputVisitor) error {
-	if w.String != nil {
-		return visitor.VisitString(w.String)
+	if w.WorkflowOutputString != nil {
+		return visitor.VisitWorkflowOutputString(w.WorkflowOutputString)
 	}
-	if w.Number != nil {
-		return visitor.VisitNumber(w.Number)
+	if w.WorkflowOutputNumber != nil {
+		return visitor.VisitWorkflowOutputNumber(w.WorkflowOutputNumber)
 	}
-	if w.Json != nil {
-		return visitor.VisitJson(w.Json)
+	if w.WorkflowOutputJson != nil {
+		return visitor.VisitWorkflowOutputJson(w.WorkflowOutputJson)
 	}
-	if w.ChatHistory != nil {
-		return visitor.VisitChatHistory(w.ChatHistory)
+	if w.WorkflowOutputChatHistory != nil {
+		return visitor.VisitWorkflowOutputChatHistory(w.WorkflowOutputChatHistory)
 	}
-	if w.SearchResults != nil {
-		return visitor.VisitSearchResults(w.SearchResults)
+	if w.WorkflowOutputSearchResults != nil {
+		return visitor.VisitWorkflowOutputSearchResults(w.WorkflowOutputSearchResults)
 	}
-	if w.Array != nil {
-		return visitor.VisitArray(w.Array)
+	if w.WorkflowOutputArray != nil {
+		return visitor.VisitWorkflowOutputArray(w.WorkflowOutputArray)
 	}
-	if w.Error != nil {
-		return visitor.VisitError(w.Error)
+	if w.WorkflowOutputError != nil {
+		return visitor.VisitWorkflowOutputError(w.WorkflowOutputError)
 	}
-	if w.FunctionCall != nil {
-		return visitor.VisitFunctionCall(w.FunctionCall)
+	if w.WorkflowOutputFunctionCall != nil {
+		return visitor.VisitWorkflowOutputFunctionCall(w.WorkflowOutputFunctionCall)
 	}
-	if w.Image != nil {
-		return visitor.VisitImage(w.Image)
+	if w.WorkflowOutputImage != nil {
+		return visitor.VisitWorkflowOutputImage(w.WorkflowOutputImage)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 // An array output from a Workflow execution.
@@ -20676,6 +25188,7 @@ type WorkflowOutputArray struct {
 	// The output's name, as defined in the workflow
 	Name  string                  `json:"name" url:"name"`
 	Value []*ArrayVellumValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20685,15 +25198,28 @@ func (w *WorkflowOutputArray) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputArray) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputArray) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputArray
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputArray
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputArray(value)
+	*w = WorkflowOutputArray(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "ARRAY", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20701,6 +25227,18 @@ func (w *WorkflowOutputArray) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputArray) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputArray
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputArray) String() string {
@@ -20721,6 +25259,7 @@ type WorkflowOutputChatHistory struct {
 	// The output's name, as defined in the workflow
 	Name  string         `json:"name" url:"name"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20730,15 +25269,28 @@ func (w *WorkflowOutputChatHistory) GetExtraProperties() map[string]interface{} 
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputChatHistory) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputChatHistory) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputChatHistory
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputChatHistory
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputChatHistory(value)
+	*w = WorkflowOutputChatHistory(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20746,6 +25298,18 @@ func (w *WorkflowOutputChatHistory) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputChatHistory) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputChatHistory
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputChatHistory) String() string {
@@ -20766,6 +25330,7 @@ type WorkflowOutputError struct {
 	// The output's name, as defined in the workflow
 	Name  string       `json:"name" url:"name"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20775,15 +25340,28 @@ func (w *WorkflowOutputError) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputError) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputError) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputError
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputError
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputError(value)
+	*w = WorkflowOutputError(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "ERROR", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20791,6 +25369,18 @@ func (w *WorkflowOutputError) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputError) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputError
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputError) String() string {
@@ -20811,6 +25401,7 @@ type WorkflowOutputFunctionCall struct {
 	// The output's name, as defined in the workflow
 	Name  string        `json:"name" url:"name"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20820,15 +25411,28 @@ func (w *WorkflowOutputFunctionCall) GetExtraProperties() map[string]interface{}
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputFunctionCall) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputFunctionCall) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputFunctionCall
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputFunctionCall
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputFunctionCall(value)
+	*w = WorkflowOutputFunctionCall(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20836,6 +25440,18 @@ func (w *WorkflowOutputFunctionCall) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputFunctionCall) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputFunctionCall
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputFunctionCall) String() string {
@@ -20856,6 +25472,7 @@ type WorkflowOutputImage struct {
 	// The output's name, as defined in the workflow
 	Name  string       `json:"name" url:"name"`
 	Value *VellumImage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20865,15 +25482,28 @@ func (w *WorkflowOutputImage) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputImage) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputImage) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputImage
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputImage
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputImage(value)
+	*w = WorkflowOutputImage(unmarshaler.embed)
+	if unmarshaler.Type != "IMAGE" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "IMAGE", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20881,6 +25511,18 @@ func (w *WorkflowOutputImage) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputImage) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputImage
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "IMAGE",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputImage) String() string {
@@ -20901,6 +25543,7 @@ type WorkflowOutputJson struct {
 	// The output's name, as defined in the workflow
 	Name  string      `json:"name" url:"name"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20910,15 +25553,28 @@ func (w *WorkflowOutputJson) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputJson) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputJson) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputJson
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputJson
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputJson(value)
+	*w = WorkflowOutputJson(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "JSON", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20926,6 +25582,18 @@ func (w *WorkflowOutputJson) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputJson) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputJson
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputJson) String() string {
@@ -20946,6 +25614,7 @@ type WorkflowOutputNumber struct {
 	// The output's name, as defined in the workflow
 	Name  string   `json:"name" url:"name"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -20955,15 +25624,28 @@ func (w *WorkflowOutputNumber) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputNumber) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputNumber) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputNumber
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputNumber
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputNumber(value)
+	*w = WorkflowOutputNumber(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "NUMBER", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -20971,6 +25653,18 @@ func (w *WorkflowOutputNumber) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputNumber) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputNumber
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputNumber) String() string {
@@ -20991,6 +25685,7 @@ type WorkflowOutputSearchResults struct {
 	// The output's name, as defined in the workflow
 	Name  string          `json:"name" url:"name"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21000,15 +25695,28 @@ func (w *WorkflowOutputSearchResults) GetExtraProperties() map[string]interface{
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputSearchResults) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputSearchResults) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputSearchResults
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputSearchResults
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputSearchResults(value)
+	*w = WorkflowOutputSearchResults(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21016,6 +25724,18 @@ func (w *WorkflowOutputSearchResults) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputSearchResults) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputSearchResults
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputSearchResults) String() string {
@@ -21036,6 +25756,7 @@ type WorkflowOutputString struct {
 	// The output's name, as defined in the workflow
 	Name  string  `json:"name" url:"name"`
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21045,15 +25766,28 @@ func (w *WorkflowOutputString) GetExtraProperties() map[string]interface{} {
 	return w.extraProperties
 }
 
+func (w *WorkflowOutputString) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowOutputString) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowOutputString
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowOutputString
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowOutputString(value)
+	*w = WorkflowOutputString(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "STRING", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21061,6 +25795,18 @@ func (w *WorkflowOutputString) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowOutputString) MarshalJSON() ([]byte, error) {
+	type embed WorkflowOutputString
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowOutputString) String() string {
@@ -21191,6 +25937,7 @@ type WorkflowRequestChatHistoryInputRequest struct {
 	// The variable's name, as defined in the Workflow.
 	Name  string                `json:"name" url:"name"`
 	Value []*ChatMessageRequest `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21200,15 +25947,28 @@ func (w *WorkflowRequestChatHistoryInputRequest) GetExtraProperties() map[string
 	return w.extraProperties
 }
 
+func (w *WorkflowRequestChatHistoryInputRequest) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowRequestChatHistoryInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowRequestChatHistoryInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowRequestChatHistoryInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowRequestChatHistoryInputRequest(value)
+	*w = WorkflowRequestChatHistoryInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21216,6 +25976,18 @@ func (w *WorkflowRequestChatHistoryInputRequest) UnmarshalJSON(data []byte) erro
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowRequestChatHistoryInputRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowRequestChatHistoryInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowRequestChatHistoryInputRequest) String() string {
@@ -21231,87 +26003,73 @@ func (w *WorkflowRequestChatHistoryInputRequest) String() string {
 }
 
 type WorkflowRequestInputRequest struct {
-	Type        string
-	String      *WorkflowRequestStringInputRequest
-	Json        *WorkflowRequestJsonInputRequest
-	ChatHistory *WorkflowRequestChatHistoryInputRequest
-	Number      *WorkflowRequestNumberInputRequest
+	WorkflowRequestStringInputRequest      *WorkflowRequestStringInputRequest
+	WorkflowRequestJsonInputRequest        *WorkflowRequestJsonInputRequest
+	WorkflowRequestChatHistoryInputRequest *WorkflowRequestChatHistoryInputRequest
+	WorkflowRequestNumberInputRequest      *WorkflowRequestNumberInputRequest
 }
 
 func (w *WorkflowRequestInputRequest) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueWorkflowRequestStringInputRequest := new(WorkflowRequestStringInputRequest)
+	if err := json.Unmarshal(data, &valueWorkflowRequestStringInputRequest); err == nil {
+		w.WorkflowRequestStringInputRequest = valueWorkflowRequestStringInputRequest
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueWorkflowRequestJsonInputRequest := new(WorkflowRequestJsonInputRequest)
+	if err := json.Unmarshal(data, &valueWorkflowRequestJsonInputRequest); err == nil {
+		w.WorkflowRequestJsonInputRequest = valueWorkflowRequestJsonInputRequest
+		return nil
 	}
-	w.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(WorkflowRequestStringInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.String = value
-	case "JSON":
-		value := new(WorkflowRequestJsonInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Json = value
-	case "CHAT_HISTORY":
-		value := new(WorkflowRequestChatHistoryInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.ChatHistory = value
-	case "NUMBER":
-		value := new(WorkflowRequestNumberInputRequest)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Number = value
+	valueWorkflowRequestChatHistoryInputRequest := new(WorkflowRequestChatHistoryInputRequest)
+	if err := json.Unmarshal(data, &valueWorkflowRequestChatHistoryInputRequest); err == nil {
+		w.WorkflowRequestChatHistoryInputRequest = valueWorkflowRequestChatHistoryInputRequest
+		return nil
 	}
-	return nil
+	valueWorkflowRequestNumberInputRequest := new(WorkflowRequestNumberInputRequest)
+	if err := json.Unmarshal(data, &valueWorkflowRequestNumberInputRequest); err == nil {
+		w.WorkflowRequestNumberInputRequest = valueWorkflowRequestNumberInputRequest
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowRequestInputRequest) MarshalJSON() ([]byte, error) {
-	if w.String != nil {
-		return core.MarshalJSONWithExtraProperty(w.String, "type", "STRING")
+	if w.WorkflowRequestStringInputRequest != nil {
+		return json.Marshal(w.WorkflowRequestStringInputRequest)
 	}
-	if w.Json != nil {
-		return core.MarshalJSONWithExtraProperty(w.Json, "type", "JSON")
+	if w.WorkflowRequestJsonInputRequest != nil {
+		return json.Marshal(w.WorkflowRequestJsonInputRequest)
 	}
-	if w.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(w.ChatHistory, "type", "CHAT_HISTORY")
+	if w.WorkflowRequestChatHistoryInputRequest != nil {
+		return json.Marshal(w.WorkflowRequestChatHistoryInputRequest)
 	}
-	if w.Number != nil {
-		return core.MarshalJSONWithExtraProperty(w.Number, "type", "NUMBER")
+	if w.WorkflowRequestNumberInputRequest != nil {
+		return json.Marshal(w.WorkflowRequestNumberInputRequest)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowRequestInputRequestVisitor interface {
-	VisitString(*WorkflowRequestStringInputRequest) error
-	VisitJson(*WorkflowRequestJsonInputRequest) error
-	VisitChatHistory(*WorkflowRequestChatHistoryInputRequest) error
-	VisitNumber(*WorkflowRequestNumberInputRequest) error
+	VisitWorkflowRequestStringInputRequest(*WorkflowRequestStringInputRequest) error
+	VisitWorkflowRequestJsonInputRequest(*WorkflowRequestJsonInputRequest) error
+	VisitWorkflowRequestChatHistoryInputRequest(*WorkflowRequestChatHistoryInputRequest) error
+	VisitWorkflowRequestNumberInputRequest(*WorkflowRequestNumberInputRequest) error
 }
 
 func (w *WorkflowRequestInputRequest) Accept(visitor WorkflowRequestInputRequestVisitor) error {
-	if w.String != nil {
-		return visitor.VisitString(w.String)
+	if w.WorkflowRequestStringInputRequest != nil {
+		return visitor.VisitWorkflowRequestStringInputRequest(w.WorkflowRequestStringInputRequest)
 	}
-	if w.Json != nil {
-		return visitor.VisitJson(w.Json)
+	if w.WorkflowRequestJsonInputRequest != nil {
+		return visitor.VisitWorkflowRequestJsonInputRequest(w.WorkflowRequestJsonInputRequest)
 	}
-	if w.ChatHistory != nil {
-		return visitor.VisitChatHistory(w.ChatHistory)
+	if w.WorkflowRequestChatHistoryInputRequest != nil {
+		return visitor.VisitWorkflowRequestChatHistoryInputRequest(w.WorkflowRequestChatHistoryInputRequest)
 	}
-	if w.Number != nil {
-		return visitor.VisitNumber(w.Number)
+	if w.WorkflowRequestNumberInputRequest != nil {
+		return visitor.VisitWorkflowRequestNumberInputRequest(w.WorkflowRequestNumberInputRequest)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 // The input for a JSON variable in a Workflow.
@@ -21319,6 +26077,7 @@ type WorkflowRequestJsonInputRequest struct {
 	// The variable's name, as defined in the Workflow.
 	Name  string      `json:"name" url:"name"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21328,15 +26087,28 @@ func (w *WorkflowRequestJsonInputRequest) GetExtraProperties() map[string]interf
 	return w.extraProperties
 }
 
+func (w *WorkflowRequestJsonInputRequest) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowRequestJsonInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowRequestJsonInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowRequestJsonInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowRequestJsonInputRequest(value)
+	*w = WorkflowRequestJsonInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "JSON", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21344,6 +26116,18 @@ func (w *WorkflowRequestJsonInputRequest) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowRequestJsonInputRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowRequestJsonInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowRequestJsonInputRequest) String() string {
@@ -21363,6 +26147,7 @@ type WorkflowRequestNumberInputRequest struct {
 	// The variable's name, as defined in the Workflow.
 	Name  string  `json:"name" url:"name"`
 	Value float64 `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21372,15 +26157,28 @@ func (w *WorkflowRequestNumberInputRequest) GetExtraProperties() map[string]inte
 	return w.extraProperties
 }
 
+func (w *WorkflowRequestNumberInputRequest) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowRequestNumberInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowRequestNumberInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowRequestNumberInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowRequestNumberInputRequest(value)
+	*w = WorkflowRequestNumberInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "NUMBER", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21388,6 +26186,18 @@ func (w *WorkflowRequestNumberInputRequest) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowRequestNumberInputRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowRequestNumberInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowRequestNumberInputRequest) String() string {
@@ -21407,6 +26217,7 @@ type WorkflowRequestStringInputRequest struct {
 	// The variable's name, as defined in the Workflow.
 	Name  string `json:"name" url:"name"`
 	Value string `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21416,15 +26227,28 @@ func (w *WorkflowRequestStringInputRequest) GetExtraProperties() map[string]inte
 	return w.extraProperties
 }
 
+func (w *WorkflowRequestStringInputRequest) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowRequestStringInputRequest) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowRequestStringInputRequest
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowRequestStringInputRequest
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowRequestStringInputRequest(value)
+	*w = WorkflowRequestStringInputRequest(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "STRING", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21432,6 +26256,18 @@ func (w *WorkflowRequestStringInputRequest) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowRequestStringInputRequest) MarshalJSON() ([]byte, error) {
+	type embed WorkflowRequestStringInputRequest
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowRequestStringInputRequest) String() string {
@@ -21512,143 +26348,125 @@ func (w *WorkflowResultEvent) String() string {
 }
 
 type WorkflowResultEventOutputData struct {
-	Type          string
-	String        *WorkflowResultEventOutputDataString
-	Number        *WorkflowResultEventOutputDataNumber
-	Json          *WorkflowResultEventOutputDataJson
-	ChatHistory   *WorkflowResultEventOutputDataChatHistory
-	SearchResults *WorkflowResultEventOutputDataSearchResults
-	Array         *WorkflowResultEventOutputDataArray
-	FunctionCall  *WorkflowResultEventOutputDataFunctionCall
-	Error         *WorkflowResultEventOutputDataError
+	WorkflowResultEventOutputDataString        *WorkflowResultEventOutputDataString
+	WorkflowResultEventOutputDataNumber        *WorkflowResultEventOutputDataNumber
+	WorkflowResultEventOutputDataJson          *WorkflowResultEventOutputDataJson
+	WorkflowResultEventOutputDataChatHistory   *WorkflowResultEventOutputDataChatHistory
+	WorkflowResultEventOutputDataSearchResults *WorkflowResultEventOutputDataSearchResults
+	WorkflowResultEventOutputDataArray         *WorkflowResultEventOutputDataArray
+	WorkflowResultEventOutputDataFunctionCall  *WorkflowResultEventOutputDataFunctionCall
+	WorkflowResultEventOutputDataError         *WorkflowResultEventOutputDataError
 }
 
 func (w *WorkflowResultEventOutputData) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueWorkflowResultEventOutputDataString := new(WorkflowResultEventOutputDataString)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataString); err == nil {
+		w.WorkflowResultEventOutputDataString = valueWorkflowResultEventOutputDataString
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueWorkflowResultEventOutputDataNumber := new(WorkflowResultEventOutputDataNumber)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataNumber); err == nil {
+		w.WorkflowResultEventOutputDataNumber = valueWorkflowResultEventOutputDataNumber
+		return nil
 	}
-	w.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "STRING":
-		value := new(WorkflowResultEventOutputDataString)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.String = value
-	case "NUMBER":
-		value := new(WorkflowResultEventOutputDataNumber)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Number = value
-	case "JSON":
-		value := new(WorkflowResultEventOutputDataJson)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Json = value
-	case "CHAT_HISTORY":
-		value := new(WorkflowResultEventOutputDataChatHistory)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.ChatHistory = value
-	case "SEARCH_RESULTS":
-		value := new(WorkflowResultEventOutputDataSearchResults)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.SearchResults = value
-	case "ARRAY":
-		value := new(WorkflowResultEventOutputDataArray)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Array = value
-	case "FUNCTION_CALL":
-		value := new(WorkflowResultEventOutputDataFunctionCall)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.FunctionCall = value
-	case "ERROR":
-		value := new(WorkflowResultEventOutputDataError)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Error = value
+	valueWorkflowResultEventOutputDataJson := new(WorkflowResultEventOutputDataJson)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataJson); err == nil {
+		w.WorkflowResultEventOutputDataJson = valueWorkflowResultEventOutputDataJson
+		return nil
 	}
-	return nil
+	valueWorkflowResultEventOutputDataChatHistory := new(WorkflowResultEventOutputDataChatHistory)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataChatHistory); err == nil {
+		w.WorkflowResultEventOutputDataChatHistory = valueWorkflowResultEventOutputDataChatHistory
+		return nil
+	}
+	valueWorkflowResultEventOutputDataSearchResults := new(WorkflowResultEventOutputDataSearchResults)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataSearchResults); err == nil {
+		w.WorkflowResultEventOutputDataSearchResults = valueWorkflowResultEventOutputDataSearchResults
+		return nil
+	}
+	valueWorkflowResultEventOutputDataArray := new(WorkflowResultEventOutputDataArray)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataArray); err == nil {
+		w.WorkflowResultEventOutputDataArray = valueWorkflowResultEventOutputDataArray
+		return nil
+	}
+	valueWorkflowResultEventOutputDataFunctionCall := new(WorkflowResultEventOutputDataFunctionCall)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataFunctionCall); err == nil {
+		w.WorkflowResultEventOutputDataFunctionCall = valueWorkflowResultEventOutputDataFunctionCall
+		return nil
+	}
+	valueWorkflowResultEventOutputDataError := new(WorkflowResultEventOutputDataError)
+	if err := json.Unmarshal(data, &valueWorkflowResultEventOutputDataError); err == nil {
+		w.WorkflowResultEventOutputDataError = valueWorkflowResultEventOutputDataError
+		return nil
+	}
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowResultEventOutputData) MarshalJSON() ([]byte, error) {
-	if w.String != nil {
-		return core.MarshalJSONWithExtraProperty(w.String, "type", "STRING")
+	if w.WorkflowResultEventOutputDataString != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataString)
 	}
-	if w.Number != nil {
-		return core.MarshalJSONWithExtraProperty(w.Number, "type", "NUMBER")
+	if w.WorkflowResultEventOutputDataNumber != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataNumber)
 	}
-	if w.Json != nil {
-		return core.MarshalJSONWithExtraProperty(w.Json, "type", "JSON")
+	if w.WorkflowResultEventOutputDataJson != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataJson)
 	}
-	if w.ChatHistory != nil {
-		return core.MarshalJSONWithExtraProperty(w.ChatHistory, "type", "CHAT_HISTORY")
+	if w.WorkflowResultEventOutputDataChatHistory != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataChatHistory)
 	}
-	if w.SearchResults != nil {
-		return core.MarshalJSONWithExtraProperty(w.SearchResults, "type", "SEARCH_RESULTS")
+	if w.WorkflowResultEventOutputDataSearchResults != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataSearchResults)
 	}
-	if w.Array != nil {
-		return core.MarshalJSONWithExtraProperty(w.Array, "type", "ARRAY")
+	if w.WorkflowResultEventOutputDataArray != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataArray)
 	}
-	if w.FunctionCall != nil {
-		return core.MarshalJSONWithExtraProperty(w.FunctionCall, "type", "FUNCTION_CALL")
+	if w.WorkflowResultEventOutputDataFunctionCall != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataFunctionCall)
 	}
-	if w.Error != nil {
-		return core.MarshalJSONWithExtraProperty(w.Error, "type", "ERROR")
+	if w.WorkflowResultEventOutputDataError != nil {
+		return json.Marshal(w.WorkflowResultEventOutputDataError)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowResultEventOutputDataVisitor interface {
-	VisitString(*WorkflowResultEventOutputDataString) error
-	VisitNumber(*WorkflowResultEventOutputDataNumber) error
-	VisitJson(*WorkflowResultEventOutputDataJson) error
-	VisitChatHistory(*WorkflowResultEventOutputDataChatHistory) error
-	VisitSearchResults(*WorkflowResultEventOutputDataSearchResults) error
-	VisitArray(*WorkflowResultEventOutputDataArray) error
-	VisitFunctionCall(*WorkflowResultEventOutputDataFunctionCall) error
-	VisitError(*WorkflowResultEventOutputDataError) error
+	VisitWorkflowResultEventOutputDataString(*WorkflowResultEventOutputDataString) error
+	VisitWorkflowResultEventOutputDataNumber(*WorkflowResultEventOutputDataNumber) error
+	VisitWorkflowResultEventOutputDataJson(*WorkflowResultEventOutputDataJson) error
+	VisitWorkflowResultEventOutputDataChatHistory(*WorkflowResultEventOutputDataChatHistory) error
+	VisitWorkflowResultEventOutputDataSearchResults(*WorkflowResultEventOutputDataSearchResults) error
+	VisitWorkflowResultEventOutputDataArray(*WorkflowResultEventOutputDataArray) error
+	VisitWorkflowResultEventOutputDataFunctionCall(*WorkflowResultEventOutputDataFunctionCall) error
+	VisitWorkflowResultEventOutputDataError(*WorkflowResultEventOutputDataError) error
 }
 
 func (w *WorkflowResultEventOutputData) Accept(visitor WorkflowResultEventOutputDataVisitor) error {
-	if w.String != nil {
-		return visitor.VisitString(w.String)
+	if w.WorkflowResultEventOutputDataString != nil {
+		return visitor.VisitWorkflowResultEventOutputDataString(w.WorkflowResultEventOutputDataString)
 	}
-	if w.Number != nil {
-		return visitor.VisitNumber(w.Number)
+	if w.WorkflowResultEventOutputDataNumber != nil {
+		return visitor.VisitWorkflowResultEventOutputDataNumber(w.WorkflowResultEventOutputDataNumber)
 	}
-	if w.Json != nil {
-		return visitor.VisitJson(w.Json)
+	if w.WorkflowResultEventOutputDataJson != nil {
+		return visitor.VisitWorkflowResultEventOutputDataJson(w.WorkflowResultEventOutputDataJson)
 	}
-	if w.ChatHistory != nil {
-		return visitor.VisitChatHistory(w.ChatHistory)
+	if w.WorkflowResultEventOutputDataChatHistory != nil {
+		return visitor.VisitWorkflowResultEventOutputDataChatHistory(w.WorkflowResultEventOutputDataChatHistory)
 	}
-	if w.SearchResults != nil {
-		return visitor.VisitSearchResults(w.SearchResults)
+	if w.WorkflowResultEventOutputDataSearchResults != nil {
+		return visitor.VisitWorkflowResultEventOutputDataSearchResults(w.WorkflowResultEventOutputDataSearchResults)
 	}
-	if w.Array != nil {
-		return visitor.VisitArray(w.Array)
+	if w.WorkflowResultEventOutputDataArray != nil {
+		return visitor.VisitWorkflowResultEventOutputDataArray(w.WorkflowResultEventOutputDataArray)
 	}
-	if w.FunctionCall != nil {
-		return visitor.VisitFunctionCall(w.FunctionCall)
+	if w.WorkflowResultEventOutputDataFunctionCall != nil {
+		return visitor.VisitWorkflowResultEventOutputDataFunctionCall(w.WorkflowResultEventOutputDataFunctionCall)
 	}
-	if w.Error != nil {
-		return visitor.VisitError(w.Error)
+	if w.WorkflowResultEventOutputDataError != nil {
+		return visitor.VisitWorkflowResultEventOutputDataError(w.WorkflowResultEventOutputDataError)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 // An Array output returned from a Workflow execution.
@@ -21660,6 +26478,7 @@ type WorkflowResultEventOutputDataArray struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string                   `json:"delta,omitempty" url:"delta,omitempty"`
 	Value []*ArrayVariableValueItem `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21669,15 +26488,28 @@ func (w *WorkflowResultEventOutputDataArray) GetExtraProperties() map[string]int
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataArray) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataArray) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataArray
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataArray
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataArray(value)
+	*w = WorkflowResultEventOutputDataArray(unmarshaler.embed)
+	if unmarshaler.Type != "ARRAY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "ARRAY", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21685,6 +26517,18 @@ func (w *WorkflowResultEventOutputDataArray) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataArray) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataArray
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "ARRAY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataArray) String() string {
@@ -21708,6 +26552,7 @@ type WorkflowResultEventOutputDataChatHistory struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string        `json:"delta,omitempty" url:"delta,omitempty"`
 	Value []*ChatMessage `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21717,15 +26562,28 @@ func (w *WorkflowResultEventOutputDataChatHistory) GetExtraProperties() map[stri
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataChatHistory) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataChatHistory) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataChatHistory
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataChatHistory
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataChatHistory(value)
+	*w = WorkflowResultEventOutputDataChatHistory(unmarshaler.embed)
+	if unmarshaler.Type != "CHAT_HISTORY" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "CHAT_HISTORY", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21733,6 +26591,18 @@ func (w *WorkflowResultEventOutputDataChatHistory) UnmarshalJSON(data []byte) er
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataChatHistory) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataChatHistory
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "CHAT_HISTORY",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataChatHistory) String() string {
@@ -21756,6 +26626,7 @@ type WorkflowResultEventOutputDataError struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string      `json:"delta,omitempty" url:"delta,omitempty"`
 	Value *VellumError `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21765,15 +26636,28 @@ func (w *WorkflowResultEventOutputDataError) GetExtraProperties() map[string]int
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataError) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataError) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataError
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataError
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataError(value)
+	*w = WorkflowResultEventOutputDataError(unmarshaler.embed)
+	if unmarshaler.Type != "ERROR" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "ERROR", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21781,6 +26665,18 @@ func (w *WorkflowResultEventOutputDataError) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataError) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataError
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "ERROR",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataError) String() string {
@@ -21804,6 +26700,7 @@ type WorkflowResultEventOutputDataFunctionCall struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string       `json:"delta,omitempty" url:"delta,omitempty"`
 	Value *FunctionCall `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21813,15 +26710,28 @@ func (w *WorkflowResultEventOutputDataFunctionCall) GetExtraProperties() map[str
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataFunctionCall) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataFunctionCall) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataFunctionCall
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataFunctionCall
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataFunctionCall(value)
+	*w = WorkflowResultEventOutputDataFunctionCall(unmarshaler.embed)
+	if unmarshaler.Type != "FUNCTION_CALL" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "FUNCTION_CALL", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21829,6 +26739,18 @@ func (w *WorkflowResultEventOutputDataFunctionCall) UnmarshalJSON(data []byte) e
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataFunctionCall) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataFunctionCall
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "FUNCTION_CALL",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataFunctionCall) String() string {
@@ -21852,6 +26774,7 @@ type WorkflowResultEventOutputDataJson struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string     `json:"delta,omitempty" url:"delta,omitempty"`
 	Value interface{} `json:"value" url:"value"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21861,15 +26784,28 @@ func (w *WorkflowResultEventOutputDataJson) GetExtraProperties() map[string]inte
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataJson) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataJson) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataJson
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataJson
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataJson(value)
+	*w = WorkflowResultEventOutputDataJson(unmarshaler.embed)
+	if unmarshaler.Type != "JSON" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "JSON", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21877,6 +26813,18 @@ func (w *WorkflowResultEventOutputDataJson) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataJson) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataJson
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "JSON",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataJson) String() string {
@@ -21900,6 +26848,7 @@ type WorkflowResultEventOutputDataNumber struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string  `json:"delta,omitempty" url:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21909,15 +26858,28 @@ func (w *WorkflowResultEventOutputDataNumber) GetExtraProperties() map[string]in
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataNumber) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataNumber) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataNumber
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataNumber
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataNumber(value)
+	*w = WorkflowResultEventOutputDataNumber(unmarshaler.embed)
+	if unmarshaler.Type != "NUMBER" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "NUMBER", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21925,6 +26887,18 @@ func (w *WorkflowResultEventOutputDataNumber) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataNumber) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataNumber
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "NUMBER",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataNumber) String() string {
@@ -21948,6 +26922,7 @@ type WorkflowResultEventOutputDataSearchResults struct {
 	// The newly output string value. Only relevant for string outputs with a state of STREAMING.
 	Delta *string         `json:"delta,omitempty" url:"delta,omitempty"`
 	Value []*SearchResult `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -21957,15 +26932,28 @@ func (w *WorkflowResultEventOutputDataSearchResults) GetExtraProperties() map[st
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataSearchResults) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataSearchResults) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataSearchResults
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataSearchResults
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataSearchResults(value)
+	*w = WorkflowResultEventOutputDataSearchResults(unmarshaler.embed)
+	if unmarshaler.Type != "SEARCH_RESULTS" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "SEARCH_RESULTS", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -21973,6 +26961,18 @@ func (w *WorkflowResultEventOutputDataSearchResults) UnmarshalJSON(data []byte) 
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataSearchResults) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataSearchResults
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "SEARCH_RESULTS",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataSearchResults) String() string {
@@ -21997,6 +26997,7 @@ type WorkflowResultEventOutputDataString struct {
 	Delta *string `json:"delta,omitempty" url:"delta,omitempty"`
 	// The entire string value. Will be non-null for events of state FULFILLED.
 	Value *string `json:"value,omitempty" url:"value,omitempty"`
+	type_ string
 
 	extraProperties map[string]interface{}
 	_rawJSON        json.RawMessage
@@ -22006,15 +27007,28 @@ func (w *WorkflowResultEventOutputDataString) GetExtraProperties() map[string]in
 	return w.extraProperties
 }
 
+func (w *WorkflowResultEventOutputDataString) Type() string {
+	return w.type_
+}
+
 func (w *WorkflowResultEventOutputDataString) UnmarshalJSON(data []byte) error {
-	type unmarshaler WorkflowResultEventOutputDataString
-	var value unmarshaler
-	if err := json.Unmarshal(data, &value); err != nil {
+	type embed WorkflowResultEventOutputDataString
+	var unmarshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+	}
+	if err := json.Unmarshal(data, &unmarshaler); err != nil {
 		return err
 	}
-	*w = WorkflowResultEventOutputDataString(value)
+	*w = WorkflowResultEventOutputDataString(unmarshaler.embed)
+	if unmarshaler.Type != "STRING" {
+		return fmt.Errorf("unexpected value for literal on type %T; expected %v got %v", w, "STRING", unmarshaler.Type)
+	}
+	w.type_ = unmarshaler.Type
 
-	extraProperties, err := core.ExtractExtraProperties(data, *w)
+	extraProperties, err := core.ExtractExtraProperties(data, *w, "type")
 	if err != nil {
 		return err
 	}
@@ -22022,6 +27036,18 @@ func (w *WorkflowResultEventOutputDataString) UnmarshalJSON(data []byte) error {
 
 	w._rawJSON = json.RawMessage(data)
 	return nil
+}
+
+func (w *WorkflowResultEventOutputDataString) MarshalJSON() ([]byte, error) {
+	type embed WorkflowResultEventOutputDataString
+	var marshaler = struct {
+		embed
+		Type string `json:"type"`
+	}{
+		embed: embed(*w),
+		Type:  "STRING",
+	}
+	return json.Marshal(marshaler)
 }
 
 func (w *WorkflowResultEventOutputDataString) String() string {
@@ -22037,57 +27063,45 @@ func (w *WorkflowResultEventOutputDataString) String() string {
 }
 
 type WorkflowStreamEvent struct {
-	Type     string
-	Workflow *WorkflowExecutionWorkflowResultEvent
-	Node     *WorkflowExecutionNodeResultEvent
+	WorkflowExecutionWorkflowResultEvent *WorkflowExecutionWorkflowResultEvent
+	WorkflowExecutionNodeResultEvent     *WorkflowExecutionNodeResultEvent
 }
 
 func (w *WorkflowStreamEvent) UnmarshalJSON(data []byte) error {
-	var unmarshaler struct {
-		Type string `json:"type"`
+	valueWorkflowExecutionWorkflowResultEvent := new(WorkflowExecutionWorkflowResultEvent)
+	if err := json.Unmarshal(data, &valueWorkflowExecutionWorkflowResultEvent); err == nil {
+		w.WorkflowExecutionWorkflowResultEvent = valueWorkflowExecutionWorkflowResultEvent
+		return nil
 	}
-	if err := json.Unmarshal(data, &unmarshaler); err != nil {
-		return err
+	valueWorkflowExecutionNodeResultEvent := new(WorkflowExecutionNodeResultEvent)
+	if err := json.Unmarshal(data, &valueWorkflowExecutionNodeResultEvent); err == nil {
+		w.WorkflowExecutionNodeResultEvent = valueWorkflowExecutionNodeResultEvent
+		return nil
 	}
-	w.Type = unmarshaler.Type
-	switch unmarshaler.Type {
-	case "WORKFLOW":
-		value := new(WorkflowExecutionWorkflowResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Workflow = value
-	case "NODE":
-		value := new(WorkflowExecutionNodeResultEvent)
-		if err := json.Unmarshal(data, &value); err != nil {
-			return err
-		}
-		w.Node = value
-	}
-	return nil
+	return fmt.Errorf("%s cannot be deserialized as a %T", data, w)
 }
 
 func (w WorkflowStreamEvent) MarshalJSON() ([]byte, error) {
-	if w.Workflow != nil {
-		return core.MarshalJSONWithExtraProperty(w.Workflow, "type", "WORKFLOW")
+	if w.WorkflowExecutionWorkflowResultEvent != nil {
+		return json.Marshal(w.WorkflowExecutionWorkflowResultEvent)
 	}
-	if w.Node != nil {
-		return core.MarshalJSONWithExtraProperty(w.Node, "type", "NODE")
+	if w.WorkflowExecutionNodeResultEvent != nil {
+		return json.Marshal(w.WorkflowExecutionNodeResultEvent)
 	}
-	return nil, fmt.Errorf("type %T does not define a non-empty union type", w)
+	return nil, fmt.Errorf("type %T does not include a non-empty union type", w)
 }
 
 type WorkflowStreamEventVisitor interface {
-	VisitWorkflow(*WorkflowExecutionWorkflowResultEvent) error
-	VisitNode(*WorkflowExecutionNodeResultEvent) error
+	VisitWorkflowExecutionWorkflowResultEvent(*WorkflowExecutionWorkflowResultEvent) error
+	VisitWorkflowExecutionNodeResultEvent(*WorkflowExecutionNodeResultEvent) error
 }
 
 func (w *WorkflowStreamEvent) Accept(visitor WorkflowStreamEventVisitor) error {
-	if w.Workflow != nil {
-		return visitor.VisitWorkflow(w.Workflow)
+	if w.WorkflowExecutionWorkflowResultEvent != nil {
+		return visitor.VisitWorkflowExecutionWorkflowResultEvent(w.WorkflowExecutionWorkflowResultEvent)
 	}
-	if w.Node != nil {
-		return visitor.VisitNode(w.Node)
+	if w.WorkflowExecutionNodeResultEvent != nil {
+		return visitor.VisitWorkflowExecutionNodeResultEvent(w.WorkflowExecutionNodeResultEvent)
 	}
-	return fmt.Errorf("type %T does not define a non-empty union type", w)
+	return fmt.Errorf("type %T does not include a non-empty union type", w)
 }
