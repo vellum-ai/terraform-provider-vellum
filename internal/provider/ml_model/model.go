@@ -243,16 +243,16 @@ func NewOpenApiPropertyRequest(ctx context.Context, openApiProperty *TfOpenApiPr
 
 	if openApiProperty.Number != nil {
 		f, _ := NewOpenApiNumberPropertyRequest(ctx, openApiProperty.Number)
-		return &vellum.OpenApiPropertyRequest{Type: "number", Number: f}, nil
+		return &vellum.OpenApiPropertyRequest{OpenApiNumberPropertyRequest: f}, nil
 	} else if openApiProperty.Integer != nil {
 		f, _ := NewOpenApiIntegerPropertyRequest(ctx, openApiProperty.Integer)
-		return &vellum.OpenApiPropertyRequest{Type: "integer", Integer: f}, nil
+		return &vellum.OpenApiPropertyRequest{OpenApiIntegerPropertyRequest: f}, nil
 	} else if openApiProperty.String != nil {
 		f, _ := NewOpenApiStringPropertyRequest(ctx, openApiProperty.String)
-		return &vellum.OpenApiPropertyRequest{Type: "string", String: f}, nil
+		return &vellum.OpenApiPropertyRequest{OpenApiStringPropertyRequest: f}, nil
 	} else if openApiProperty.Boolean != nil {
 		f, _ := NewOpenApiBooleanPropertyRequest(ctx, openApiProperty.Boolean)
-		return &vellum.OpenApiPropertyRequest{Type: "boolean", Boolean: f}, nil
+		return &vellum.OpenApiPropertyRequest{OpenApiBooleanPropertyRequest: f}, nil
 	}
 	// TODO: Add object and array
 	// 	Note: Terraform plugin doesn't support recursive schemas
